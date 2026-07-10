@@ -24,6 +24,7 @@ export default function CheckoutForm({ gender, title, students, teachers, active
   const [message, setMessage] = useState<{ text: string; type: 'error' | 'warn' } | null>(null)
   const [showPin, setShowPin] = useState(false)
   const [limitVideo, setLimitVideo] = useState<string | null>(null)
+  const [focused, setFocused] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim()
@@ -69,18 +70,38 @@ export default function CheckoutForm({ gender, title, students, teachers, active
       <div className="p-6">
         <h2 className={`mb-5 text-2xl font-bold ${accentColor}`}>{title}</h2>
 
-        <div className="mb-3">
-          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Search Student</label>
-          <input type="text" value={search} onChange={e => { setSearch(e.target.value); setStudentId('') }}
-            placeholder="Type name to filter..." className={inputCls} />
-        </div>
-
-        <div className="mb-3">
+        <div className="relative mb-3">
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Student</label>
-          <select value={studentId} onChange={e => setStudentId(e.target.value)} className={inputCls}>
-            <option value="">Choose a student</option>
-            {filtered.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          <input
+            type="text"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setStudentId(''); setFocused(true) }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setTimeout(() => setFocused(false), 150)}
+            placeholder="Type your name…"
+            className={inputCls}
+          />
+          {focused && !studentId && (
+            <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+              {filtered.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-gray-400">No students match “{search}”.</p>
+              ) : (
+                filtered.map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => { setStudentId(s.id); setSearch(s.name); setFocused(false) }}
+                    className="block w-full px-4 py-3 text-left text-sm text-gray-900 hover:bg-purple-50"
+                  >
+                    {s.name}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+          {studentId && selectedStudent && (
+            <p className="mt-1.5 text-xs font-medium text-emerald-700">✓ Selected: {selectedStudent.name}</p>
+          )}
         </div>
 
         <div className="mb-3">
