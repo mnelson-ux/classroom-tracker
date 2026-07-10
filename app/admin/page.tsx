@@ -6,6 +6,7 @@ import TeacherManager from '@/components/admin/TeacherManager'
 import RoomManager from '@/components/admin/RoomManager'
 import SettingsManager from '@/components/admin/SettingsManager'
 import HistoryView from '@/components/admin/HistoryView'
+import { SCHOOLS } from '@/lib/schools'
 import type { AuthState, Student, Teacher, Room } from '@/lib/types'
 
 type Tab = 'students' | 'teachers' | 'rooms' | 'settings' | 'history'
@@ -14,6 +15,7 @@ export default function AdminPage() {
   const [auth, setAuth] = useState<AuthState | null>(null)
   const [checking, setChecking] = useState(true)
   const [tab, setTab] = useState<Tab>('students')
+  const [school, setSchool] = useState('hs')
   const [students, setStudents] = useState<Student[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [rooms, setRooms] = useState<Room[]>([])
@@ -38,11 +40,12 @@ export default function AdminPage() {
   const loadAll = async () => {
     if (!auth?.token) return
     const h = { Authorization: `Bearer ${auth.token}` }
+    const q = `school=${school}&ts=${Date.now()}`
     const [sRes, tRes, rRes, stRes] = await Promise.all([
-      fetch('/api/admin/students', { headers: h }),
-      fetch('/api/admin/teachers', { headers: h }),
-      fetch('/api/admin/rooms', { headers: h }),
-      fetch('/api/admin/settings', { headers: h }),
+      fetch(`/api/admin/students?${q}`, { headers: h, cache: 'no-store' }),
+      fetch(`/api/admin/teachers?${q}`, { headers: h, cache: 'no-store' }),
+      fetch(`/api/admin/rooms?${q}`, { headers: h, cache: 'no-store' }),
+      fetch(`/api/admin/settings?${q}`, { headers: h, cache: 'no-store' }),
     ])
 
     if (sRes.status === 401) {
@@ -60,7 +63,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (auth) loadAll()
-  }, [auth]) // eslint-disable-line
+  }, [auth, school]) // eslint-disable-line
 
   const handleLogout = async () => {
     if (auth?.token) {
@@ -98,8 +101,16 @@ export default function AdminPage() {
             <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
             <p className="text-sm text-gray-500">Logged in as {auth.userName}</p>
           </div>
-          <div className="flex gap-3">
-            <a href="/" className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-gray-50">
+          <div className="flex items-center gap-3">
+            <div className="inline-flex gap-1 rounded-xl bg-gray-100 p-1">
+              {SCHOOLS.map((s) => (
+                <button key={s.id} onClick={() => setSchool(s.id)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${school === s.id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <a href={`/${school}`} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-gray-50">
               View Site
             </a>
             <button onClick={handleLogout} className="rounded-full bg-purple-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-900">
@@ -129,19 +140,19 @@ export default function AdminPage() {
 
         {/* Tab content */}
         {tab === 'students' && (
-          <StudentManager students={students} token={auth.token!} onRefresh={loadAll} />
+          <StudentManager students={students} token={auth.token!} school={school} onRefresh={loadAll} />
         )}
         {tab === 'teachers' && (
-          <TeacherManager teachers={teachers} rooms={rooms} token={auth.token!} onRefresh={loadAll} />
+          <TeacherManager teachers={teachers} rooms={rooms} token={auth.token!} school={school} onRefresh={loadAll} />
         )}
         {tab === 'rooms' && (
-          <RoomManager rooms={rooms} token={auth.token!} onRefresh={loadAll} />
+          <RoomManager rooms={rooms} token={auth.token!} school={school} onRefresh={loadAll} />
         )}
         {tab === 'settings' && (
-          <SettingsManager settings={settings} token={auth.token!} onRefresh={loadAll} />
+          <SettingsManager settings={settings} token={auth.token!} school={school} onRefresh={loadAll} />
         )}
         {tab === 'history' && (
-          <HistoryView token={auth.token!} students={students} />
+          <HistoryView token={auth.token!} students={students} school={school} />
         )}
       </div>
     </div>

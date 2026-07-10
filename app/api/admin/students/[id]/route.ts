@@ -13,6 +13,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
   if (body.name) update.name = body.name
   if (body.gender) update.gender = body.gender
+  if (body.school) update.school = body.school
   if (typeof body.active === 'boolean') update.active = body.active
   if (body.pin) update.pin_hash = await bcrypt.hash(body.pin, 10)
 

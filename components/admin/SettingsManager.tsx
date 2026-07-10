@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface SettingRow {
   key: string
@@ -12,10 +12,11 @@ interface SettingRow {
 interface Props {
   settings: SettingRow[]
   token: string
+  school: string
   onRefresh: () => void
 }
 
-export default function SettingsManager({ settings, token, onRefresh }: Props) {
+export default function SettingsManager({ settings, token, school, onRefresh }: Props) {
   const [values, setValues] = useState<Record<string, string>>(
     Object.fromEntries(settings.map((s) => [s.key, s.value]))
   )
@@ -23,13 +24,18 @@ export default function SettingsManager({ settings, token, onRefresh }: Props) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
+  // Re-sync the editable values whenever the loaded settings change (e.g. switching school).
+  useEffect(() => {
+    setValues(Object.fromEntries(settings.map((s) => [s.key, s.value])))
+  }, [settings])
+
   const handleSave = async () => {
     setSaving(true); setError(''); setSaved(false)
     const updates = Object.entries(values).map(([key, value]) => ({ key, value }))
     const res = await fetch('/api/admin/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(updates),
+      body: JSON.stringify({ updates, school }),
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error); setSaving(false); return }

@@ -2,17 +2,19 @@
 
 import { useState } from 'react'
 import { nameMatches } from '@/lib/search'
+import { schoolLabel } from '@/lib/schools'
 import type { Student } from '@/lib/types'
 
 interface Props {
   students: Student[]
   token: string
+  school: string
   onRefresh: () => void
 }
 
 const emptyForm = { name: '', gender: 'female' as 'male' | 'female', pin: '' }
 
-export default function StudentManager({ students, token, onRefresh }: Props) {
+export default function StudentManager({ students, token, school, onRefresh }: Props) {
   const [form, setForm] = useState(emptyForm)
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ name: '', gender: 'female' as 'male' | 'female', pin: '', active: true })
@@ -83,7 +85,7 @@ export default function StudentManager({ students, token, onRefresh }: Props) {
         setImporting(false); return
       }
       const res = await fetch('/api/admin/students/import', {
-        method: 'POST', headers, body: JSON.stringify({ students: parsed }),
+        method: 'POST', headers, body: JSON.stringify({ students: parsed, school }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Import failed'); setImporting(false); return }
@@ -98,7 +100,7 @@ export default function StudentManager({ students, token, onRefresh }: Props) {
   const handleAdd = async () => {
     if (!form.name || !form.pin || form.pin.length !== 4) { setError('Name and 4-digit PIN required'); return }
     setLoading(true); setError('')
-    const res = await fetch('/api/admin/students', { method: 'POST', headers, body: JSON.stringify(form) })
+    const res = await fetch('/api/admin/students', { method: 'POST', headers, body: JSON.stringify({ ...form, school }) })
     const data = await res.json()
     if (!res.ok) { setError(data.error); setLoading(false); return }
     setForm(emptyForm); onRefresh(); setLoading(false)
@@ -122,6 +124,13 @@ export default function StudentManager({ students, token, onRefresh }: Props) {
 
   const handleToggle = async (id: string, active: boolean) => {
     await fetch(`/api/admin/students/${id}`, { method: 'PUT', headers, body: JSON.stringify({ active: !active }) })
+    onRefresh()
+  }
+
+  const otherSchool = school === 'hs' ? 'ms' : 'hs'
+  const handleMove = async (id: string, name: string) => {
+    if (!confirm(`Move ${name} to ${schoolLabel(otherSchool)}?`)) return
+    await fetch(`/api/admin/students/${id}`, { method: 'PUT', headers, body: JSON.stringify({ school: otherSchool }) })
     onRefresh()
   }
 
@@ -265,6 +274,7 @@ export default function StudentManager({ students, token, onRefresh }: Props) {
                         <button onClick={() => handleToggle(s.id, s.active)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50">
                           {s.active ? 'Deactivate' : 'Activate'}
                         </button>
+                        <button onClick={() => handleMove(s.id, s.name)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-50">→ {schoolLabel(otherSchool)}</button>
                         <button onClick={() => handleDelete(s.id, s.name)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50">Delete</button>
                       </div>
                     </td>

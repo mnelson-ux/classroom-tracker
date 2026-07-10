@@ -6,13 +6,14 @@ import type { Checkout, Student } from '@/lib/types'
 interface Props {
   token: string
   students: Student[]
+  school: string
 }
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
 }
 
-export default function HistoryView({ token, students }: Props) {
+export default function HistoryView({ token, students, school }: Props) {
   const [records, setRecords] = useState<Checkout[]>([])
   const [loading, setLoading] = useState(false)
   const [dateFrom, setDateFrom] = useState('')
@@ -25,6 +26,7 @@ export default function HistoryView({ token, students }: Props) {
     if (dateFrom) params.set('from', new Date(dateFrom).toISOString())
     if (dateTo) { const end = new Date(dateTo); end.setHours(23, 59, 59); params.set('to', end.toISOString()) }
     if (studentId) params.set('studentId', studentId)
+    params.set('school', school)
     params.set('ts', Date.now().toString())
     const res = await fetch(`/api/admin/history?${params}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
     const data = await res.json()
@@ -32,7 +34,7 @@ export default function HistoryView({ token, students }: Props) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, []) // eslint-disable-line
+  useEffect(() => { load() }, [school]) // eslint-disable-line
 
   const exportCsv = () => {
     const header = 'Student,Gender,Teacher,Room,Location,Check-Out,Check-In,Duration (min)\n'

@@ -30,11 +30,14 @@ export async function GET(request: Request) {
   weekStart.setDate(weekStart.getDate() - weekStart.getDay()) // back to Sunday
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const { data: checkouts, error } = await supabaseAdmin
+  const school = new URL(request.url).searchParams.get('school')
+  let cq = supabaseAdmin
     .from('checkouts')
     .select('teacher_id, location, check_out_time, duration_minutes, teacher:teachers(id, name), student:students(id, name, gender)')
     .order('check_out_time', { ascending: false })
+  if (school) cq = cq.eq('school', school)
 
+  const { data: checkouts, error } = await cq
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   type StudentAgg = { student_name: string; week: PeriodStats; month: PeriodStats; all: PeriodStats }

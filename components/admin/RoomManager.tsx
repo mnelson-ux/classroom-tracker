@@ -6,10 +6,11 @@ import type { Room } from '@/lib/types'
 interface Props {
   rooms: Room[]
   token: string
+  school: string
   onRefresh: () => void
 }
 
-export default function RoomManager({ rooms, token, onRefresh }: Props) {
+export default function RoomManager({ rooms, token, school, onRefresh }: Props) {
   const [newName, setNewName] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -21,7 +22,7 @@ export default function RoomManager({ rooms, token, onRefresh }: Props) {
   const handleAdd = async () => {
     if (!newName.trim()) { setError('Room name required'); return }
     setLoading(true); setError('')
-    const res = await fetch('/api/admin/rooms', { method: 'POST', headers, body: JSON.stringify({ name: newName }) })
+    const res = await fetch('/api/admin/rooms', { method: 'POST', headers, body: JSON.stringify({ name: newName, school }) })
     const data = await res.json()
     if (!res.ok) { setError(data.error); setLoading(false); return }
     setNewName(''); onRefresh(); setLoading(false)

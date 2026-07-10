@@ -1,18 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import { schoolLabel } from '@/lib/schools'
 import type { Teacher, Room } from '@/lib/types'
 
 interface Props {
   teachers: Teacher[]
   rooms: Room[]
   token: string
+  school: string
   onRefresh: () => void
 }
 
 const emptyForm = { name: '', username: '', password: '', room_id: '' }
 
-export default function TeacherManager({ teachers, rooms, token, onRefresh }: Props) {
+export default function TeacherManager({ teachers, rooms, token, school, onRefresh }: Props) {
   const [form, setForm] = useState(emptyForm)
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ name: '', username: '', password: '', room_id: '', active: true })
@@ -26,7 +28,7 @@ export default function TeacherManager({ teachers, rooms, token, onRefresh }: Pr
   const handleAdd = async () => {
     if (!form.name || !form.username || !form.password) { setError('All fields required'); return }
     setLoading(true); setError('')
-    const res = await fetch('/api/admin/teachers', { method: 'POST', headers, body: JSON.stringify({ ...form, room_id: form.room_id || null }) })
+    const res = await fetch('/api/admin/teachers', { method: 'POST', headers, body: JSON.stringify({ ...form, room_id: form.room_id || null, school }) })
     const data = await res.json()
     if (!res.ok) { setError(data.error); setLoading(false); return }
     setForm(emptyForm); onRefresh(); setLoading(false)
@@ -58,6 +60,13 @@ export default function TeacherManager({ teachers, rooms, token, onRefresh }: Pr
     setError('')
     const res = await fetch(`/api/admin/teachers/${id}`, { method: 'DELETE', headers })
     if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error ?? 'Delete failed'); return }
+    onRefresh()
+  }
+
+  const otherSchool = school === 'hs' ? 'ms' : 'hs'
+  const handleMove = async (id: string, name: string) => {
+    if (!confirm(`Move ${name} to ${schoolLabel(otherSchool)}?`)) return
+    await fetch(`/api/admin/teachers/${id}`, { method: 'PUT', headers, body: JSON.stringify({ school: otherSchool }) })
     onRefresh()
   }
 
@@ -128,6 +137,7 @@ export default function TeacherManager({ teachers, rooms, token, onRefresh }: Pr
                         <button onClick={() => handleToggle(t.id, t.active)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50">
                           {t.active ? 'Deactivate' : 'Activate'}
                         </button>
+                        <button onClick={() => handleMove(t.id, t.name)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-50">→ {schoolLabel(otherSchool)}</button>
                         <button onClick={() => handleDelete(t.id, t.name)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50">Delete</button>
                       </div>
                     </td>

@@ -16,6 +16,7 @@ export async function GET(request: Request) {
   const dateFrom = url.searchParams.get('from')
   const dateTo = url.searchParams.get('to')
   const studentId = url.searchParams.get('studentId')
+  const school = url.searchParams.get('school')
 
   let query = supabaseAdmin
     .from('checkouts')
@@ -32,6 +33,7 @@ export async function GET(request: Request) {
   if (dateFrom) query = query.gte('check_out_time', dateFrom)
   if (dateTo) query = query.lte('check_out_time', dateTo)
   if (studentId) query = query.eq('student_id', studentId)
+  if (school) query = query.eq('school', school)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

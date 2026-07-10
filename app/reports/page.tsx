@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment, useEffect, useState } from 'react'
+import { SCHOOLS, isSchool } from '@/lib/schools'
 import type { AuthState } from '@/lib/types'
 
 interface Bucket { trips: number; minutes: number }
@@ -34,8 +35,14 @@ export default function ReportsPage() {
   const [loc, setLoc] = useState('Total')
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [school, setSchool] = useState('hs')
 
   useEffect(() => {
+    // Default the school from the ?school= param the site link passes in.
+    try {
+      const p = new URLSearchParams(window.location.search).get('school')
+      if (isSchool(p)) setSchool(p)
+    } catch {}
     try {
       const stored = localStorage.getItem('auth')
       if (stored) {
@@ -48,7 +55,8 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (!auth?.token) return
-    fetch(`/api/reports?ts=${Date.now()}`, { headers: { Authorization: `Bearer ${auth.token}` }, cache: 'no-store' })
+    setLoading(true)
+    fetch(`/api/reports?school=${school}&ts=${Date.now()}`, { headers: { Authorization: `Bearer ${auth.token}` }, cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d.teachers)) setTeachers(d.teachers)
@@ -56,7 +64,7 @@ export default function ReportsPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [auth])
+  }, [auth, school])
 
   if (checking || !auth) {
     return (
@@ -78,9 +86,19 @@ export default function ReportsPage() {
             <h1 className="text-xl font-bold text-gray-900">Reports</h1>
             <p className="text-sm text-gray-500">Checkout activity by teacher</p>
           </div>
-          <a href="/" className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-gray-50">
-            Back to App
-          </a>
+          <div className="flex items-center gap-3">
+            <div className="inline-flex gap-1 rounded-xl bg-gray-100 p-1">
+              {SCHOOLS.map((s) => (
+                <button key={s.id} onClick={() => setSchool(s.id)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${school === s.id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <a href={`/${school}`} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-gray-50">
+              Back to App
+            </a>
+          </div>
         </div>
       </div>
 

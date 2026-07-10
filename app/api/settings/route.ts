@@ -6,8 +6,12 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
-export async function GET() {
-  const { data, error } = await supabaseAdmin.from('settings').select('key, value')
+export async function GET(request: Request) {
+  const school = new URL(request.url).searchParams.get('school') ?? 'hs'
+  const { data, error } = await supabaseAdmin
+    .from('settings')
+    .select('key, value')
+    .eq('school', school)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

@@ -27,10 +27,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { students } = await request.json()
+  const { students, school } = await request.json()
   if (!Array.isArray(students)) {
     return NextResponse.json({ error: 'Expected a "students" array' }, { status: 400 })
   }
+  const targetSchool = school ?? 'hs'
 
   const rows: { name: string; gender: 'male' | 'female'; pin_hash: string }[] = []
   const generated: { name: string; pin: string }[] = []
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
   if (rows.length > 0) {
     const { data, error } = await supabaseAdmin
       .from('students')
-      .insert(rows.map((r) => ({ ...r, active: true })))
+      .insert(rows.map((r) => ({ ...r, active: true, school: targetSchool })))
       .select('id')
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     inserted = data?.length ?? 0

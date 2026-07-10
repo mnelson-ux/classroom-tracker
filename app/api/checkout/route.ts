@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
   // Bathroom-specific checks
   if (location === 'Bathroom') {
-    const { data: settingsRows } = await supabaseAdmin.from('settings').select('key, value')
+    const { data: settingsRows } = await supabaseAdmin.from('settings').select('key, value').eq('school', student.school)
     const settings: Record<string, string> = {}
     settingsRows?.forEach((r) => { settings[r.key] = r.value })
 
@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       .select('student_id, teacher_id, students(gender)')
       .eq('is_checked_out', true)
       .eq('location', 'Bathroom')
+      .eq('school', student.school)
 
     const gender = student.gender
     const sameGenderOut = activeBathroom?.filter((c: any) => c.students?.gender === gender) ?? []
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
       .from('settings')
       .select('value')
       .eq('key', 'time_limit_minutes')
+      .eq('school', student.school)
       .single()
     const limitMinutes = parseInt(settingRow?.value ?? '10')
 
@@ -114,6 +116,7 @@ export async function POST(request: Request) {
       room_id: roomId,
       teacher_id: teacherId,
       location,
+      school: student.school,
       check_out_time: new Date().toISOString(),
       is_checked_out: true,
     })

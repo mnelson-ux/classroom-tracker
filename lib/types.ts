@@ -8,6 +8,7 @@ export interface Admin {
 export interface Room {
   id: string
   name: string
+  school: string
   created_at: string
 }
 
@@ -18,6 +19,7 @@ export interface Teacher {
   password_hash: string
   room_id: string | null
   active: boolean
+  school: string
   created_at: string
   room?: Room
 }
@@ -28,6 +30,7 @@ export interface Student {
   gender: 'male' | 'female'
   pin_hash: string
   active: boolean
+  school: string
   created_at: string
 }
 
