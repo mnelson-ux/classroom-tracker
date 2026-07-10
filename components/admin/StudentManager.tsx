@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { nameMatches } from '@/lib/search'
 import type { Student } from '@/lib/types'
 
 interface Props {
@@ -22,7 +23,7 @@ export default function StudentManager({ students, token, onRefresh }: Props) {
   const [importResult, setImportResult] = useState<{ inserted: number; skippedCount: number; generated: { name: string; pin: string }[] } | null>(null)
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-  const filtered = students.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
+  const filtered = search.trim() ? students.filter((s) => nameMatches(s.name, search)) : students
 
   const input = 'w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-700/20'
   const select = 'rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-purple-700 focus:outline-none'

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import PinModal from './PinModal'
+import { nameMatches } from '@/lib/search'
 import type { Student, Teacher, Checkout } from '@/lib/types'
 
 interface Props {
@@ -25,8 +26,8 @@ export default function CheckoutForm({ gender, title, students, teachers, active
   const [limitVideo, setLimitVideo] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase()
-    return students.filter(s => s.gender === gender && (!q || s.name.toLowerCase().includes(q)))
+    const q = search.trim()
+    return students.filter(s => s.gender === gender && (!q || nameMatches(s.name, q)))
   }, [students, gender, search])
 
   const selectedStudent = students.find(s => s.id === studentId)

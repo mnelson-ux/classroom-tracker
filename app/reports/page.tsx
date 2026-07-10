@@ -66,7 +66,9 @@ export default function ReportsPage() {
     )
   }
 
-  const tabs = ['Total', ...locations]
+  // Always show the standard locations, plus any others that appear in the data.
+  const STANDARD = ['Bathroom', 'Office', 'Nurse']
+  const tabs = ['Total', ...STANDARD, ...locations.filter((l) => !STANDARD.includes(l))]
 
   return (
     <div className="min-h-screen">
