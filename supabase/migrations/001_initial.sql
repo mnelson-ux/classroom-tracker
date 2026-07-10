@@ -5,20 +5,20 @@ create extension if not exists "pgcrypto";
 -- TABLES
 -- ============================================================
 
-create table admins (
+create table if not exists admins (
   id uuid default gen_random_uuid() primary key,
   username text not null unique,
   password_hash text not null,
   created_at timestamptz default now()
 );
 
-create table rooms (
+create table if not exists rooms (
   id uuid default gen_random_uuid() primary key,
   name text not null unique,
   created_at timestamptz default now()
 );
 
-create table teachers (
+create table if not exists teachers (
   id uuid default gen_random_uuid() primary key,
   name text not null,
   username text not null unique,
@@ -28,7 +28,7 @@ create table teachers (
   created_at timestamptz default now()
 );
 
-create table students (
+create table if not exists students (
   id uuid default gen_random_uuid() primary key,
   name text not null,
   gender text not null check (gender in ('male', 'female')),
@@ -37,7 +37,7 @@ create table students (
   created_at timestamptz default now()
 );
 
-create table checkouts (
+create table if not exists checkouts (
   id uuid default gen_random_uuid() primary key,
   student_id uuid references students(id) not null,
   room_id uuid references rooms(id) not null,
@@ -50,14 +50,14 @@ create table checkouts (
   created_at timestamptz default now()
 );
 
-create table settings (
+create table if not exists settings (
   key text primary key,
   value text not null,
   label text not null,
   description text
 );
 
-create table sessions (
+create table if not exists sessions (
   id uuid default gen_random_uuid() primary key,
   token text unique not null default gen_random_uuid()::text,
   user_type text check (user_type in ('admin', 'teacher')) not null,
@@ -79,27 +79,17 @@ insert into settings (key, value, label, description) values
   ('max_bathroom_total_boys', '2', 'Max Boys Total (Bathroom)', 'Max boys school-wide in bathroom at once'),
   ('max_bathroom_total_girls', '2', 'Max Girls Total (Bathroom)', 'Max girls school-wide in bathroom at once'),
   ('time_limit_minutes', '10', 'Daily Bathroom Time Limit (minutes)', 'Max minutes a student can spend in the bathroom per day'),
-  ('locations', 'Bathroom,Office,Nurse', 'Available Locations', 'Comma-separated list of checkout locations');
+  ('locations', 'Bathroom,Office,Nurse', 'Available Locations', 'Comma-separated list of checkout locations')
+on conflict (key) do nothing;
 
 -- ============================================================
--- DEFAULT ROOMS & TEACHERS
--- (Passwords will need to be set via the /setup page)
+-- DEFAULT ROOMS
 -- ============================================================
 
 insert into rooms (name) values
-  ('Nelson'),
-  ('Hernandez'),
-  ('Walls'),
-  ('Shoemaker'),
-  ('Bailey'),
-  ('Lopez'),
-  ('Rivera'),
-  ('Swaggart');
-
--- ============================================================
--- DEFAULT STUDENTS (PINs from original app - must be re-hashed)
--- Run the seed script after setup to import with hashed PINs
--- ============================================================
+  ('Nelson'), ('Hernandez'), ('Walls'), ('Shoemaker'),
+  ('Bailey'), ('Lopez'), ('Rivera'), ('Swaggart')
+on conflict (name) do nothing;
 
 -- ============================================================
 -- ROW LEVEL SECURITY
@@ -113,27 +103,26 @@ alter table checkouts enable row level security;
 alter table settings enable row level security;
 alter table sessions enable row level security;
 
--- Public read access (needed for the main page)
+-- Public read policies (drop first in case they exist)
+drop policy if exists "public_read_rooms" on rooms;
+drop policy if exists "public_read_teachers" on teachers;
+drop policy if exists "public_read_students" on students;
+drop policy if exists "public_read_checkouts" on checkouts;
+drop policy if exists "public_read_settings" on settings;
+
 create policy "public_read_rooms" on rooms for select using (true);
 create policy "public_read_teachers" on teachers for select using (active = true);
 create policy "public_read_students" on students for select using (active = true);
 create policy "public_read_checkouts" on checkouts for select using (true);
 create policy "public_read_settings" on settings for select using (true);
 
--- Service role (used by API routes) bypasses RLS automatically
-
 -- ============================================================
--- INDEXES for performance
+-- INDEXES
 -- ============================================================
 
-create index idx_checkouts_is_checked_out on checkouts(is_checked_out);
-create index idx_checkouts_student_id on checkouts(student_id);
-create index idx_checkouts_teacher_id on checkouts(teacher_id);
-create index idx_checkouts_check_out_time on checkouts(check_out_time);
-create index idx_sessions_token on sessions(token);
-create index idx_sessions_expires_at on sessions(expires_at);
-
--- ============================================================
--- AUTO-CLEANUP old sessions (optional, run periodically)
--- ============================================================
--- delete from sessions where expires_at < now();
+create index if not exists idx_checkouts_is_checked_out on checkouts(is_checked_out);
+create index if not exists idx_checkouts_student_id on checkouts(student_id);
+create index if not exists idx_checkouts_teacher_id on checkouts(teacher_id);
+create index if not exists idx_checkouts_check_out_time on checkouts(check_out_time);
+create index if not exists idx_sessions_token on sessions(token);
+create index if not exists idx_sessions_expires_at on sessions(expires_at);

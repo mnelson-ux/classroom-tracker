@@ -76,7 +76,7 @@ export default function AdminPage() {
   if (checking || !auth) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-xl text-forest-300">Loading...</div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-purple-800" />
       </div>
     )
   }
@@ -92,17 +92,17 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen">
       {/* Top bar */}
-      <div className="border-b border-white/10 bg-forest-900 px-6 py-4">
+      <div className="border-b border-gray-200 bg-white px-6 py-4">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
-            <p className="text-sm text-white/50">Logged in as {auth.userName}</p>
+            <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
+            <p className="text-sm text-gray-500">Logged in as {auth.userName}</p>
           </div>
           <div className="flex gap-3">
-            <a href="/" className="rounded-lg bg-forest-600/50 px-4 py-2 text-sm font-bold text-white hover:bg-forest-600">
+            <a href="/" className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-gray-50">
               View Site
             </a>
-            <button onClick={handleLogout} className="rounded-lg bg-white/20 px-4 py-2 text-sm font-bold text-white hover:bg-white/30">
+            <button onClick={handleLogout} className="rounded-full bg-purple-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-900">
               Log Out
             </button>
           </div>
@@ -111,15 +111,15 @@ export default function AdminPage() {
 
       <div className="mx-auto max-w-6xl px-4 py-6">
         {/* Tab nav */}
-        <div className="mb-8 flex gap-1 rounded-xl bg-forest-900 p-1">
+        <div className="mb-8 flex gap-1 rounded-xl bg-white p-1 shadow-sm">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition ${
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
                 tab === t.id
-                  ? 'bg-forest-600 text-white'
-                  : 'text-white/60 hover:text-white'
+                  ? 'bg-purple-800 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               {t.label}

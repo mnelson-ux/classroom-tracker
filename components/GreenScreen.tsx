@@ -12,29 +12,20 @@ interface Props {
 }
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 }
 
 function useElapsed(startIso: string) {
   const [elapsed, setElapsed] = useState(0)
-
   useEffect(() => {
-    const tick = () => {
-      const diff = Math.floor((Date.now() - new Date(startIso).getTime()) / 1000)
-      setElapsed(diff)
-    }
+    const tick = () => setElapsed(Math.floor((Date.now() - new Date(startIso).getTime()) / 1000))
     tick()
-    const interval = setInterval(tick, 1000)
-    return () => clearInterval(interval)
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
   }, [startIso])
-
   const mins = Math.floor(elapsed / 60)
   const secs = elapsed % 60
-  return `${mins}m ${secs.toString().padStart(2, '0')}s`
+  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 export default function GreenScreen({ checkout, student, teacher, onCheckedIn }: Props) {
@@ -53,50 +44,56 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
     return null
   }
 
+  const firstName = student.name.includes(',')
+    ? student.name.split(',')[1]?.trim()
+    : student.name
+
   return (
-    <div className="fixed inset-0 z-40 flex flex-col items-center justify-between bg-green-600 p-8 text-white">
-      {/* Top bar */}
-      <div className="flex w-full items-center justify-between">
-        <div className="rounded-full bg-white/20 px-4 py-2 text-lg font-bold">
-          {checkout.location}
+    <div className="fixed inset-0 z-40 flex flex-col bg-emerald-500">
+      {/* Top info strip */}
+      <div className="flex items-center justify-between px-8 pt-8">
+        <div className="rounded-full bg-white/20 px-4 py-2">
+          <p className="text-sm font-semibold text-white">{checkout.location}</p>
         </div>
-        <div className="rounded-full bg-white/20 px-4 py-2 text-lg font-bold">
-          {teacher?.name ?? ''}
+        <div className="rounded-full bg-white/20 px-4 py-2">
+          <p className="text-sm font-semibold text-white">{teacher?.name ?? ''}</p>
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex flex-col items-center gap-6 text-center">
-        {/* Big checkmark */}
-        <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white/20 text-7xl">
-          ✓
+      {/* Center content */}
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8 text-center">
+        {/* Checkmark circle */}
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/25">
+          <svg className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
         </div>
 
-        <div className="text-3xl font-semibold uppercase tracking-widest opacity-80">
-          Checked Out
+        <div>
+          <p className="mb-1 text-lg font-medium text-white/80 uppercase tracking-widest">Checked Out</p>
+          <h1 className="text-5xl font-bold text-white sm:text-7xl">{firstName}</h1>
+          <p className="mt-2 text-xl font-medium text-white/80">{student.name.split(',')[0]}</p>
         </div>
 
-        <div className="text-6xl font-bold leading-tight md:text-7xl">
-          {student.name}
-        </div>
-
-        <div className="flex flex-col items-center gap-2 text-xl opacity-90">
-          <span>Left at {formatTime(checkout.check_out_time)}</span>
-          <span className="text-2xl font-bold">{elapsed}</span>
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-6xl font-bold tabular-nums text-white">{elapsed}</p>
+          <p className="text-base text-white/70">Left at {formatTime(checkout.check_out_time)}</p>
         </div>
       </div>
 
       {/* Check back in button */}
-      <button
-        onClick={() => setShowPin(true)}
-        className="w-full max-w-sm rounded-2xl bg-white py-5 text-2xl font-bold text-green-700 shadow-lg transition active:scale-95 hover:bg-green-50"
-      >
-        Check Back In
-      </button>
+      <div className="px-8 pb-10">
+        <button
+          onClick={() => setShowPin(true)}
+          className="w-full rounded-2xl bg-white py-5 text-lg font-bold text-emerald-600 shadow-lg transition hover:bg-emerald-50 active:scale-[0.98]"
+        >
+          Check Back In
+        </button>
+      </div>
 
       {showPin && (
         <PinModal
-          title={`Check back in, ${student.name.split(',')[1]?.trim() ?? student.name}?`}
+          title={`Welcome back, ${firstName}!`}
           onSubmit={handleCheckin}
           onClose={() => setShowPin(false)}
         />

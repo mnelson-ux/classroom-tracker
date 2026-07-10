@@ -13,14 +13,9 @@ interface Props {
   onCheckoutSuccess: (checkout: Checkout, student: Student) => void
 }
 
-export default function CheckoutForm({
-  gender,
-  title,
-  students,
-  teachers,
-  activeCheckouts,
-  onCheckoutSuccess,
-}: Props) {
+const inputCls = 'w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-700/20'
+
+export default function CheckoutForm({ gender, title, students, teachers, activeCheckouts, onCheckoutSuccess }: Props) {
   const [studentId, setStudentId] = useState('')
   const [teacherId, setTeacherId] = useState('')
   const [location, setLocation] = useState('')
@@ -28,13 +23,12 @@ export default function CheckoutForm({
   const [message, setMessage] = useState<{ text: string; type: 'error' | 'warn' } | null>(null)
   const [showPin, setShowPin] = useState(false)
 
-  const filteredStudents = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return students
-      .filter((s) => s.gender === gender && (!q || s.name.toLowerCase().includes(q)))
+    return students.filter(s => s.gender === gender && (!q || s.name.toLowerCase().includes(q)))
   }, [students, gender, search])
 
-  const selectedStudent = students.find((s) => s.id === studentId)
+  const selectedStudent = students.find(s => s.id === studentId)
 
   const flash = (text: string, type: 'error' | 'warn' = 'warn') => {
     setMessage({ text, type })
@@ -42,141 +36,81 @@ export default function CheckoutForm({
   }
 
   const handleCheckout = () => {
-    if (!studentId || !teacherId || !location) {
-      flash('Please select a student, location, and teacher', 'error')
-      return
-    }
-
-    // If already checked out, just show green screen
-    const existingCheckout = activeCheckouts.find((c) => c.student_id === studentId)
-    if (existingCheckout && selectedStudent) {
-      onCheckoutSuccess(existingCheckout, selectedStudent)
-      return
-    }
-
+    if (!studentId || !teacherId || !location) { flash('Please select a student, location, and teacher', 'error'); return }
+    const existing = activeCheckouts.find(c => c.student_id === studentId)
+    if (existing && selectedStudent) { onCheckoutSuccess(existing, selectedStudent); return }
     setShowPin(true)
   }
 
   const submitCheckout = async (pin: string): Promise<string | null> => {
-    const selectedTeacher = teachers.find((t) => t.id === teacherId)
-
+    const t = teachers.find(t => t.id === teacherId)
     const res = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        studentId,
-        teacherId,
-        roomId: selectedTeacher?.room_id ?? teacherId,
-        location,
-        pin,
-      }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId, teacherId, roomId: t?.room_id ?? teacherId, location, pin }),
     })
-
     const data = await res.json()
-
-    if (!res.ok) {
-      if (data.limitReached) {
-        flash(data.error, 'warn')
-        return data.error
-      }
-      return data.error ?? 'Checkout failed'
-    }
-
-    // Success — clear form and show green screen
-    if (selectedStudent) {
-      onCheckoutSuccess(data.checkout, selectedStudent)
-    }
-    setStudentId('')
-    setTeacherId('')
-    setLocation('')
-    setSearch('')
+    if (!res.ok) { if (data.limitReached) flash(data.error, 'warn'); return data.error ?? 'Checkout failed' }
+    if (selectedStudent) onCheckoutSuccess(data.checkout, selectedStudent)
+    setStudentId(''); setTeacherId(''); setLocation(''); setSearch('')
     return null
   }
 
+  const isGirls = gender === 'female'
+  const accentColor = isGirls ? 'text-purple-800' : 'text-amber-600'
+  const topBorder = isGirls ? 'border-t-4 border-t-purple-800' : 'border-t-4 border-t-amber-500'
+
   return (
-    <div className="rounded-2xl bg-white/10 p-6">
-      <h2 className="mb-6 text-center text-3xl font-bold text-white">{title}</h2>
+    <div className={`rounded-2xl bg-white shadow-sm ${topBorder}`}>
+      <div className="p-6">
+        <h2 className={`mb-5 text-2xl font-bold ${accentColor}`}>{title}</h2>
 
-      {/* Student search */}
-      <div className="mb-3">
-        <label className="mb-1 block text-sm font-semibold text-white/80">Search Student</label>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setStudentId('') }}
-          placeholder="Type name to filter..."
-          className="w-full rounded-xl border-2 border-forest-600 bg-white/10 px-4 py-3 text-white placeholder-white/40 focus:border-forest-300 focus:outline-none"
-        />
-      </div>
-
-      {/* Student select */}
-      <div className="mb-3">
-        <label className="mb-1 block text-sm font-semibold text-white/80">Select Student</label>
-        <select
-          value={studentId}
-          onChange={(e) => setStudentId(e.target.value)}
-          className="w-full rounded-xl border-2 border-forest-600 bg-forest-800 px-4 py-3 text-white focus:border-forest-300 focus:outline-none"
-        >
-          <option value="">Choose a student</option>
-          {filteredStudents.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Location select */}
-      <div className="mb-3">
-        <label className="mb-1 block text-sm font-semibold text-white/80">Location</label>
-        <select
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className="w-full rounded-xl border-2 border-forest-600 bg-forest-800 px-4 py-3 text-white focus:border-forest-300 focus:outline-none"
-        >
-          <option value="">Choose a location</option>
-          <option value="Bathroom">Bathroom</option>
-          <option value="Office">Office</option>
-          <option value="Nurse">Nurse</option>
-        </select>
-      </div>
-
-      {/* Teacher select */}
-      <div className="mb-5">
-        <label className="mb-1 block text-sm font-semibold text-white/80">Your Teacher</label>
-        <select
-          value={teacherId}
-          onChange={(e) => setTeacherId(e.target.value)}
-          className="w-full rounded-xl border-2 border-forest-600 bg-forest-800 px-4 py-3 text-white focus:border-forest-300 focus:outline-none"
-        >
-          <option value="">Choose a teacher</option>
-          {teachers.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
-      </div>
-
-      <button
-        onClick={handleCheckout}
-        className="w-full rounded-xl bg-forest-600 py-4 text-lg font-bold text-white transition hover:bg-forest-700 active:scale-95"
-      >
-        Check Out
-      </button>
-
-      {message && (
-        <div className={`mt-4 rounded-xl border-2 px-4 py-3 text-center font-semibold ${
-          message.type === 'error'
-            ? 'border-red-500 bg-red-500/20 text-red-200'
-            : 'border-forest-300 bg-forest-300/20 text-forest-200'
-        }`}>
-          {message.text}
+        <div className="mb-3">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Search Student</label>
+          <input type="text" value={search} onChange={e => { setSearch(e.target.value); setStudentId('') }}
+            placeholder="Type name to filter..." className={inputCls} />
         </div>
-      )}
+
+        <div className="mb-3">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Student</label>
+          <select value={studentId} onChange={e => setStudentId(e.target.value)} className={inputCls}>
+            <option value="">Choose a student</option>
+            {filtered.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+
+        <div className="mb-3">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Location</label>
+          <select value={location} onChange={e => setLocation(e.target.value)} className={inputCls}>
+            <option value="">Choose a location</option>
+            <option value="Bathroom">Bathroom</option>
+            <option value="Office">Office</option>
+            <option value="Nurse">Nurse</option>
+          </select>
+        </div>
+
+        <div className="mb-5">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Your Teacher</label>
+          <select value={teacherId} onChange={e => setTeacherId(e.target.value)} className={inputCls}>
+            <option value="">Choose a teacher</option>
+            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+
+        <button onClick={handleCheckout}
+          className="w-full rounded-xl bg-purple-800 py-3.5 text-sm font-bold text-white transition hover:bg-purple-900 active:scale-[0.98]">
+          Check Out
+        </button>
+
+        {message && (
+          <div className={`mt-4 rounded-xl px-4 py-3 text-sm font-medium ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+            {message.text}
+          </div>
+        )}
+      </div>
 
       {showPin && selectedStudent && (
-        <PinModal
-          title={`Enter PIN for ${selectedStudent.name.split(',')[1]?.trim() ?? selectedStudent.name}`}
-          onSubmit={submitCheckout}
-          onClose={() => setShowPin(false)}
-        />
+        <PinModal title={`PIN for ${selectedStudent.name.split(',')[1]?.trim() ?? selectedStudent.name}`}
+          onSubmit={submitCheckout} onClose={() => setShowPin(false)} />
       )}
     </div>
   )

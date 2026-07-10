@@ -11,11 +11,7 @@ import type { Student, Teacher, Checkout, Settings, AuthState } from '@/lib/type
 function useClock() {
   const [time, setTime] = useState('')
   useEffect(() => {
-    const tick = () => {
-      setTime(new Date().toLocaleTimeString('en-US', {
-        hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true,
-      }))
-    }
+    const tick = () => setTime(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }))
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
@@ -31,80 +27,41 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [showLogin, setShowLogin] = useState(false)
   const [auth, setAuth] = useState<AuthState | null>(null)
-
-  // Green screen state — shown when THIS device just checked out a student
-  const [greenScreen, setGreenScreen] = useState<{
-    checkout: Checkout
-    student: Student
-  } | null>(null)
+  const [greenScreen, setGreenScreen] = useState<{ checkout: Checkout; student: Student } | null>(null)
 
   const clock = useClock()
 
-  // Load initial data
   const loadData = useCallback(async () => {
-    const [studentsRes, teachersRes, checkoutsRes, settingsRes] = await Promise.all([
-      fetch('/api/students'),
-      fetch('/api/teachers'),
-      fetch('/api/checkouts'),
-      fetch('/api/settings'),
-    ])
-
-    const [studentsData, teachersData, checkoutsData, settingsData] = await Promise.all([
-      studentsRes.json(),
-      teachersRes.json(),
-      checkoutsRes.json(),
-      settingsRes.json(),
-    ])
-
-    setStudents(studentsData)
-    setTeachers(teachersData)
-    setActiveCheckouts(checkoutsData)
-    setSettings(settingsData)
-    setLoading(false)
+    try {
+      const [sRes, tRes, cRes, stRes] = await Promise.all([
+        fetch('/api/students'), fetch('/api/teachers'), fetch('/api/checkouts'), fetch('/api/settings'),
+      ])
+      const [s, t, c, st] = await Promise.all([
+        sRes.json().catch(() => []), tRes.json().catch(() => []),
+        cRes.json().catch(() => []), stRes.json().catch(() => ({})),
+      ])
+      if (Array.isArray(s)) setStudents(s)
+      if (Array.isArray(t)) setTeachers(t)
+      if (Array.isArray(c)) setActiveCheckouts(c)
+      if (st && typeof st === 'object' && !st.error) setSettings(st)
+    } catch {}
+    finally { setLoading(false) }
   }, [])
 
   useEffect(() => {
     loadData()
-
-    // Restore auth from localStorage
-    try {
-      const stored = localStorage.getItem('auth')
-      if (stored) setAuth(JSON.parse(stored))
-    } catch {}
-
-    // Real-time subscription to checkouts table
-    const channel = supabase
-      .channel('checkouts-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'checkouts' },
-        () => {
-          // Re-fetch active checkouts on any change
-          fetch('/api/checkouts')
-            .then((r) => r.json())
-            .then(setActiveCheckouts)
-        }
-      )
-      .subscribe()
-
+    try { const stored = localStorage.getItem('auth'); if (stored) setAuth(JSON.parse(stored)) } catch {}
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+    if (url.includes('placeholder')) return
+    const channel = supabase.channel('checkouts-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checkouts' }, () => {
+        fetch('/api/checkouts').then(r => r.json()).then(d => { if (Array.isArray(d)) setActiveCheckouts(d) }).catch(() => {})
+      }).subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [loadData])
 
-  const handleCheckoutSuccess = (checkout: Checkout, student: Student) => {
-    setGreenScreen({ checkout, student })
-  }
-
-  const handleCheckedIn = () => {
-    setGreenScreen(null)
-  }
-
   const handleLogout = async () => {
-    if (auth?.token) {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${auth.token}` },
-      })
-    }
+    if (auth?.token) await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${auth.token}` } })
     localStorage.removeItem('auth')
     setAuth(null)
   }
@@ -112,112 +69,66 @@ export default function HomePage() {
   const pageTitle = settings.page_title ?? 'Classroom Check-In/Out Tracker'
   const girlsTitle = settings.girls_section_title ?? 'Girls'
   const boysTitle = settings.boys_section_title ?? 'Boys'
-
-  const teacherForGreenScreen = greenScreen
-    ? teachers.find((t) => t.id === greenScreen.checkout.teacher_id)
-    : undefined
+  const teacherForGreenScreen = greenScreen ? teachers.find(t => t.id === greenScreen.checkout.teacher_id) : undefined
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-2xl font-bold text-forest-300">Loading...</div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-purple-800" />
       </div>
     )
   }
 
   return (
     <>
-      {/* Full-screen green screen overlay */}
       {greenScreen && (
-        <GreenScreen
-          checkout={greenScreen.checkout}
-          student={greenScreen.student}
-          teacher={teacherForGreenScreen}
-          onCheckedIn={handleCheckedIn}
-        />
+        <GreenScreen checkout={greenScreen.checkout} student={greenScreen.student}
+          teacher={teacherForGreenScreen} onCheckedIn={() => setGreenScreen(null)} />
       )}
 
-      <div className="mx-auto max-w-6xl px-4 py-6">
-        {/* Header */}
-        <header className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-white md:text-5xl">{pageTitle}</h1>
-          <div className="mt-2 text-2xl font-semibold text-forest-300">{clock}</div>
-        </header>
-
-        {/* Teacher status bar */}
-        {auth?.isAuthenticated && (
-          <div className="mb-4 flex items-center justify-between rounded-xl bg-forest-700 px-4 py-3">
-            <span className="font-semibold text-forest-300">
-              Logged in as {auth.userName} ({auth.userType})
-            </span>
-            <div className="flex gap-3">
-              {auth.userType === 'admin' && (
-                <a
-                  href="/admin"
-                  className="rounded-lg bg-forest-500 px-4 py-2 font-bold text-white hover:bg-forest-600"
-                >
-                  Admin Panel
-                </a>
-              )}
-              <button
-                onClick={handleLogout}
-                className="rounded-lg bg-white/20 px-4 py-2 font-bold text-white hover:bg-white/30"
-              >
-                Log Out
-              </button>
-            </div>
+      {/* Header — school purple with gold accent */}
+      <header className="sticky top-0 z-10 bg-purple-800 shadow-lg">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <div>
+            <h1 className="text-xl font-bold text-white">{pageTitle}</h1>
+            <p className="text-sm font-semibold text-amber-400">{clock}</p>
           </div>
-        )}
+          {auth?.isAuthenticated ? (
+            <div className="flex items-center gap-3">
+              <span className="hidden text-sm text-purple-200 sm:block">{auth.userName}</span>
+              {auth.userType === 'admin' && (
+                <a href="/admin" className="rounded-full bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30 transition">Admin Panel</a>
+              )}
+              <button onClick={handleLogout} className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition">Log Out</button>
+            </div>
+          ) : (
+            <button onClick={() => setShowLogin(true)} className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition">Staff Login</button>
+          )}
+        </div>
+        <div className="h-1 w-full bg-amber-400" />
+      </header>
 
-        {/* Checkout forms */}
+      <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-8 grid gap-6 md:grid-cols-2">
-          <CheckoutForm
-            gender="female"
-            title={girlsTitle}
-            students={students}
-            teachers={teachers}
-            activeCheckouts={activeCheckouts}
-            onCheckoutSuccess={handleCheckoutSuccess}
-          />
-          <CheckoutForm
-            gender="male"
-            title={boysTitle}
-            students={students}
-            teachers={teachers}
-            activeCheckouts={activeCheckouts}
-            onCheckoutSuccess={handleCheckoutSuccess}
-          />
+          <CheckoutForm gender="female" title={girlsTitle} students={students} teachers={teachers}
+            activeCheckouts={activeCheckouts} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
+          <CheckoutForm gender="male" title={boysTitle} students={students} teachers={teachers}
+            activeCheckouts={activeCheckouts} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
         </div>
 
-        {/* Currently checked out */}
-        <section className="rounded-2xl bg-white/5 p-6">
-          <h2 className="mb-4 text-2xl font-bold text-white">
-            Currently Out ({activeCheckouts.length})
-          </h2>
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">Currently Out</h2>
+            <span className="rounded-full bg-purple-100 px-3 py-1 text-sm font-semibold text-purple-800">
+              {activeCheckouts.length} student{activeCheckouts.length !== 1 ? 's' : ''}
+            </span>
+          </div>
           <CheckedOutList checkouts={activeCheckouts} />
-        </section>
-      </div>
-
-      {/* Hidden login button — bottom-right corner */}
-      {!auth?.isAuthenticated && (
-        <button
-          onClick={() => setShowLogin(true)}
-          className="fixed bottom-4 right-4 rounded-full bg-white/10 p-3 text-white/40 transition hover:bg-white/20 hover:text-white/80"
-          title="Staff Login"
-          aria-label="Staff Login"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-        </button>
-      )}
+        </div>
+      </main>
 
       {showLogin && (
-        <LoginModal
-          onSuccess={(newAuth) => { setAuth(newAuth); setShowLogin(false) }}
-          onClose={() => setShowLogin(false)}
-        />
+        <LoginModal onSuccess={(a) => { setAuth(a); setShowLogin(false) }} onClose={() => setShowLogin(false)} />
       )}
     </>
   )
