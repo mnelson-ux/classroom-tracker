@@ -49,7 +49,7 @@ export default function CheckoutForm({ gender, title, students, teachers, active
     const t = teachers.find(t => t.id === teacherId)
     const res = await fetch('/api/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ studentId, teacherId, roomId: t?.room_id ?? teacherId, location, pin }),
+      body: JSON.stringify({ studentId, teacherId, roomId: t?.room_id ?? null, location, pin }),
     })
     const data = await res.json()
     if (!res.ok) {

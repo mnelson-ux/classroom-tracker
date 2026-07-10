@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 export async function POST(request: Request) {
   const { studentId, teacherId, roomId, location, pin } = await request.json()
 
-  if (!studentId || !teacherId || !roomId || !location || !pin) {
+  if (!studentId || !teacherId || !location || !pin) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
     .from('checkouts')
     .insert({
       student_id: studentId,
-      room_id: roomId,
+      room_id: roomId ?? null,
       teacher_id: teacherId,
       location,
       school: student.school,
