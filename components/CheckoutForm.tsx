@@ -105,6 +105,25 @@ export default function CheckoutForm({ gender, title, students, teachers, active
         </div>
 
         <div className="mb-3">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">…or pick from the list</label>
+          <select
+            value={studentId}
+            onChange={e => {
+              const id = e.target.value
+              setStudentId(id)
+              setSearch(students.find(s => s.id === id)?.name ?? '')
+            }}
+            className={inputCls}
+          >
+            <option value="">Choose a student</option>
+            {students
+              .filter(s => s.gender === gender)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+
+        <div className="mb-3">
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Location</label>
           <select value={location} onChange={e => setLocation(e.target.value)} className={inputCls}>
             <option value="">Choose a location</option>
