@@ -4,15 +4,19 @@ import { Fragment, useEffect, useState } from 'react'
 import type { AuthState } from '@/lib/types'
 
 interface Bucket { trips: number; minutes: number }
-interface StudentAgg { student_name: string; week: Bucket; month: Bucket; all: Bucket }
+type PeriodStats = Record<string, Bucket>
+interface StudentAgg { student_name: string; week: PeriodStats; month: PeriodStats; all: PeriodStats }
 interface TeacherAgg {
   teacher_id: string
   teacher_name: string
-  week: Bucket; month: Bucket; all: Bucket
+  week: PeriodStats; month: PeriodStats; all: PeriodStats
   students: StudentAgg[]
 }
 
-function Cell({ b }: { b: Bucket }) {
+const EMPTY: Bucket = { trips: 0, minutes: 0 }
+
+function Cell({ stats, loc }: { stats: PeriodStats; loc: string }) {
+  const b = stats[loc] ?? EMPTY
   return (
     <td className="px-4 py-3 text-center">
       <span className="font-semibold text-gray-900">{b.trips}</span>
@@ -26,6 +30,8 @@ export default function ReportsPage() {
   const [auth, setAuth] = useState<AuthState | null>(null)
   const [checking, setChecking] = useState(true)
   const [teachers, setTeachers] = useState<TeacherAgg[]>([])
+  const [locations, setLocations] = useState<string[]>([])
+  const [loc, setLoc] = useState('Total')
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
@@ -44,7 +50,10 @@ export default function ReportsPage() {
     if (!auth?.token) return
     fetch(`/api/reports?ts=${Date.now()}`, { headers: { Authorization: `Bearer ${auth.token}` }, cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => { if (Array.isArray(d.teachers)) setTeachers(d.teachers) })
+      .then((d) => {
+        if (Array.isArray(d.teachers)) setTeachers(d.teachers)
+        if (Array.isArray(d.locations)) setLocations(d.locations)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [auth])
@@ -56,6 +65,8 @@ export default function ReportsPage() {
       </div>
     )
   }
+
+  const tabs = ['Total', ...locations]
 
   return (
     <div className="min-h-screen">
@@ -72,6 +83,21 @@ export default function ReportsPage() {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-6">
+        {/* Location filter */}
+        <div className="mb-5 inline-flex flex-wrap gap-1 rounded-xl bg-white p-1 shadow-sm">
+          {tabs.map((l) => (
+            <button
+              key={l}
+              onClick={() => setLoc(l)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                loc === l ? 'bg-purple-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <p className="text-sm text-gray-500">Loading…</p>
         ) : teachers.length === 0 ? (
@@ -81,7 +107,9 @@ export default function ReportsPage() {
             <table className="w-full text-sm">
               <thead className="border-b border-gray-200 bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Teacher</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Teacher <span className="font-normal normal-case text-gray-400">· {loc}</span>
+                  </th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">This Week</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">This Month</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">All Time</th>
@@ -96,16 +124,16 @@ export default function ReportsPage() {
                         <span className="mr-2 inline-block text-gray-400">{expanded[t.teacher_id] ? '▾' : '▸'}</span>
                         {t.teacher_name}
                       </td>
-                      <Cell b={t.week} />
-                      <Cell b={t.month} />
-                      <Cell b={t.all} />
+                      <Cell stats={t.week} loc={loc} />
+                      <Cell stats={t.month} loc={loc} />
+                      <Cell stats={t.all} loc={loc} />
                     </tr>
                     {expanded[t.teacher_id] && t.students.map((s) => (
                       <tr key={`${t.teacher_id}-${s.student_name}`} className="bg-gray-50/50">
                         <td className="py-2 pl-12 pr-4 text-gray-700">{s.student_name}</td>
-                        <Cell b={s.week} />
-                        <Cell b={s.month} />
-                        <Cell b={s.all} />
+                        <Cell stats={s.week} loc={loc} />
+                        <Cell stats={s.month} loc={loc} />
+                        <Cell stats={s.all} loc={loc} />
                       </tr>
                     ))}
                   </Fragment>
@@ -114,7 +142,10 @@ export default function ReportsPage() {
             </table>
           </div>
         )}
-        <p className="mt-3 text-xs text-gray-500">Tap a teacher row to see the per-student breakdown. &quot;This Week&quot; starts Sunday; &quot;This Month&quot; starts the 1st.</p>
+        <p className="mt-3 text-xs text-gray-500">
+          Use the buttons above to filter by location. Tap a teacher row to see the per-student breakdown.
+          &quot;This Week&quot; starts Sunday; &quot;This Month&quot; starts the 1st.
+        </p>
       </div>
     </div>
   )
