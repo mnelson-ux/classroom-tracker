@@ -33,8 +33,12 @@ export default function HomePage() {
 
   const loadData = useCallback(async () => {
     try {
+      const t = Date.now()
       const [sRes, tRes, cRes, stRes] = await Promise.all([
-        fetch('/api/students'), fetch('/api/teachers'), fetch('/api/checkouts'), fetch('/api/settings'),
+        fetch(`/api/students?t=${t}`, { cache: 'no-store' }),
+        fetch(`/api/teachers?t=${t}`, { cache: 'no-store' }),
+        fetch(`/api/checkouts?t=${t}`, { cache: 'no-store' }),
+        fetch(`/api/settings?t=${t}`, { cache: 'no-store' }),
       ])
       const [s, t, c, st] = await Promise.all([
         sRes.json().catch(() => []), tRes.json().catch(() => []),
@@ -57,7 +61,7 @@ export default function HomePage() {
     if (url.includes('placeholder')) return
     const channel = supabase.channel('checkouts-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'checkouts' }, () => {
-        fetch('/api/checkouts').then(r => r.json()).then(d => { if (Array.isArray(d)) setActiveCheckouts(d) }).catch(() => {})
+        fetch(`/api/checkouts?t=${Date.now()}`, { cache: 'no-store' }).then(r => r.json()).then(d => { if (Array.isArray(d)) setActiveCheckouts(d) }).catch(() => {})
       }).subscribe()
     return () => { supabase.removeChannel(channel); document.removeEventListener('visibilitychange', handleVisibility) }
   }, [loadData])
