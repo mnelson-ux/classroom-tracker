@@ -123,15 +123,17 @@ export default function HomePage() {
             activeCheckouts={activeCheckouts} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
         </div>
 
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">Currently Out</h2>
-            <span className="rounded-full bg-purple-100 px-3 py-1 text-sm font-semibold text-purple-800">
-              {activeCheckouts.length} student{activeCheckouts.length !== 1 ? 's' : ''}
-            </span>
+        {auth?.isAuthenticated && (auth.userType === 'teacher' || auth.userType === 'admin') && (
+          <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">Currently Out</h2>
+              <span className="rounded-full bg-purple-100 px-3 py-1 text-sm font-semibold text-purple-800">
+                {activeCheckouts.length} student{activeCheckouts.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <CheckedOutList checkouts={activeCheckouts} />
           </div>
-          <CheckedOutList checkouts={activeCheckouts} />
-        </div>
+        )}
       </main>
 
       {showLogin && (

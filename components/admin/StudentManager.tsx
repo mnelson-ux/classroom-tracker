@@ -57,7 +57,9 @@ export default function StudentManager({ students, token, onRefresh }: Props) {
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete ${name}? This cannot be undone.`)) return
-    await fetch(`/api/admin/students/${id}`, { method: 'DELETE', headers })
+    setError('')
+    const res = await fetch(`/api/admin/students/${id}`, { method: 'DELETE', headers })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error ?? 'Delete failed'); return }
     onRefresh()
   }
 

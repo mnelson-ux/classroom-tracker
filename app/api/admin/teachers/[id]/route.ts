@@ -35,9 +35,18 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
   const { error } = await supabaseAdmin
     .from('teachers')
-    .update({ active: false })
+    .delete()
     .eq('id', params.id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Foreign-key violation — teacher is referenced by checkout history.
+    if (error.code === '23503') {
+      return NextResponse.json(
+        { error: 'This teacher has checkout history and cannot be deleted. Use Deactivate to hide them instead.' },
+        { status: 409 },
+      )
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ success: true })
 }

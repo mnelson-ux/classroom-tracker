@@ -25,9 +25,10 @@ export default function HistoryView({ token, students }: Props) {
     if (dateFrom) params.set('from', new Date(dateFrom).toISOString())
     if (dateTo) { const end = new Date(dateTo); end.setHours(23, 59, 59); params.set('to', end.toISOString()) }
     if (studentId) params.set('studentId', studentId)
-    const res = await fetch(`/api/admin/history?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+    params.set('ts', Date.now().toString())
+    const res = await fetch(`/api/admin/history?${params}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
     const data = await res.json()
-    setRecords(data)
+    setRecords(Array.isArray(data) ? data : [])
     setLoading(false)
   }
 

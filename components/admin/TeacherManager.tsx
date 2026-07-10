@@ -53,6 +53,14 @@ export default function TeacherManager({ teachers, rooms, token, onRefresh }: Pr
     onRefresh()
   }
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete ${name}? This cannot be undone.`)) return
+    setError('')
+    const res = await fetch(`/api/admin/teachers/${id}`, { method: 'DELETE', headers })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error ?? 'Delete failed'); return }
+    onRefresh()
+  }
+
   return (
     <div>
       <h2 className="mb-6 text-2xl font-bold text-gray-900">Teachers</h2>
@@ -120,6 +128,7 @@ export default function TeacherManager({ teachers, rooms, token, onRefresh }: Pr
                         <button onClick={() => handleToggle(t.id, t.active)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50">
                           {t.active ? 'Deactivate' : 'Activate'}
                         </button>
+                        <button onClick={() => handleDelete(t.id, t.name)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50">Delete</button>
                       </div>
                     </td>
                   </>

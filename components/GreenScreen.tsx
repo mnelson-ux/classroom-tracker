@@ -15,6 +15,21 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 }
 
+function formatDate(d: Date) {
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+// Rotating globe — cycles every 400ms so a screenshot can't reproduce the live motion.
+function useRotatingGlobe() {
+  const globes = ['🌍', '🌎', '🌏']
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setI((n) => (n + 1) % 3), 400)
+    return () => clearInterval(id)
+  }, [])
+  return globes[i]
+}
+
 function useElapsed(startIso: string) {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
@@ -31,6 +46,8 @@ function useElapsed(startIso: string) {
 export default function GreenScreen({ checkout, student, teacher, onCheckedIn }: Props) {
   const [showPin, setShowPin] = useState(false)
   const elapsed = useElapsed(checkout.check_out_time)
+  const globe = useRotatingGlobe()
+  const today = formatDate(new Date())
 
   const handleCheckin = async (pin: string): Promise<string | null> => {
     const res = await fetch('/api/checkin', {
@@ -61,12 +78,11 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
       </div>
 
       {/* Center content */}
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8 text-center">
-        {/* Checkmark circle */}
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/25">
-          <svg className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
+      <div className="flex flex-1 flex-col items-center justify-center gap-5 px-8 text-center">
+        {/* Rotating globe inside a spinning ring — motion proves this is live, not a screenshot */}
+        <div className="relative flex h-28 w-28 items-center justify-center">
+          <div className="absolute inset-0 animate-spin rounded-full border-4 border-white/30 border-t-white" style={{ animationDuration: '2s' }} />
+          <span className="text-5xl" role="img" aria-label="rotating globe">{globe}</span>
         </div>
 
         <div>
@@ -74,6 +90,9 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
           <h1 className="text-5xl font-bold text-white sm:text-7xl">{firstName}</h1>
           <p className="mt-2 text-xl font-medium text-white/80">{student.name.split(',')[0]}</p>
         </div>
+
+        {/* Big date — readable from across the room */}
+        <p className="text-3xl font-bold text-white sm:text-5xl">{today}</p>
 
         <div className="flex flex-col items-center gap-1">
           <p className="text-6xl font-bold tabular-nums text-white">{elapsed}</p>

@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
 
+// Never cache or pre-render this route — always query the database live.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
+
 export async function GET(request: Request) {
   if (!await verifyAdminSession(getTokenFromRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -30,5 +35,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  return NextResponse.json(data ?? [], {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+  })
 }
