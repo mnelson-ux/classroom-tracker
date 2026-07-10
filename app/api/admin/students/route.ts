@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabaseAdmin
     .from('students')
-    .insert({ name, gender, pin_hash })
+    .insert({ name, gender, pin_hash, active: true })
     .select('id, name, gender, active')
     .single()
 

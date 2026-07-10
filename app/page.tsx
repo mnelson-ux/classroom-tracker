@@ -51,13 +51,15 @@ export default function HomePage() {
   useEffect(() => {
     loadData()
     try { const stored = localStorage.getItem('auth'); if (stored) setAuth(JSON.parse(stored)) } catch {}
+    const handleVisibility = () => { if (document.visibilityState === 'visible') loadData() }
+    document.addEventListener('visibilitychange', handleVisibility)
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
     if (url.includes('placeholder')) return
     const channel = supabase.channel('checkouts-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'checkouts' }, () => {
         fetch('/api/checkouts').then(r => r.json()).then(d => { if (Array.isArray(d)) setActiveCheckouts(d) }).catch(() => {})
       }).subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => { supabase.removeChannel(channel); document.removeEventListener('visibilitychange', handleVisibility) }
   }, [loadData])
 
   const handleLogout = async () => {
