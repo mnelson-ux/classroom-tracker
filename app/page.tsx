@@ -33,12 +33,12 @@ export default function HomePage() {
 
   const loadData = useCallback(async () => {
     try {
-      const t = Date.now()
+      const ts = Date.now()
       const [sRes, tRes, cRes, stRes] = await Promise.all([
-        fetch(`/api/students?t=${t}`, { cache: 'no-store' }),
-        fetch(`/api/teachers?t=${t}`, { cache: 'no-store' }),
-        fetch(`/api/checkouts?t=${t}`, { cache: 'no-store' }),
-        fetch(`/api/settings?t=${t}`, { cache: 'no-store' }),
+        fetch(`/api/students?ts=${ts}`, { cache: 'no-store' }),
+        fetch(`/api/teachers?ts=${ts}`, { cache: 'no-store' }),
+        fetch(`/api/checkouts?ts=${ts}`, { cache: 'no-store' }),
+        fetch(`/api/settings?ts=${ts}`, { cache: 'no-store' }),
       ])
       const [s, t, c, st] = await Promise.all([
         sRes.json().catch(() => []), tRes.json().catch(() => []),
