@@ -55,6 +55,12 @@ export default function StudentManager({ students, token, onRefresh }: Props) {
     onRefresh()
   }
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete ${name}? This cannot be undone.`)) return
+    await fetch(`/api/admin/students/${id}`, { method: 'DELETE', headers })
+    onRefresh()
+  }
+
   return (
     <div>
       <h2 className="mb-6 text-2xl font-bold text-gray-900">Students</h2>
@@ -138,6 +144,7 @@ export default function StudentManager({ students, token, onRefresh }: Props) {
                         <button onClick={() => handleToggle(s.id, s.active)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50">
                           {s.active ? 'Deactivate' : 'Activate'}
                         </button>
+                        <button onClick={() => handleDelete(s.id, s.name)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50">Delete</button>
                       </div>
                     </td>
                   </>

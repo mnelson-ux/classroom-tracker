@@ -32,10 +32,9 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Soft delete — set active = false
   const { error } = await supabaseAdmin
     .from('students')
-    .update({ active: false })
+    .delete()
     .eq('id', params.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
