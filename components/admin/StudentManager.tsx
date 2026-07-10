@@ -18,12 +18,81 @@ export default function StudentManager({ students, token, onRefresh }: Props) {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ inserted: number; skippedCount: number; generated: { name: string; pin: string }[] } | null>(null)
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
   const filtered = students.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
 
   const input = 'w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-700/20'
   const select = 'rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-purple-700 focus:outline-none'
+
+  // Parse one CSV/TSV line, respecting double-quoted fields.
+  const parseLine = (line: string, delim: string): string[] => {
+    const out: string[] = []
+    let cur = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++ }
+        else inQuotes = !inQuotes
+      } else if (ch === delim && !inQuotes) {
+        out.push(cur); cur = ''
+      } else cur += ch
+    }
+    out.push(cur)
+    return out.map((v) => v.trim())
+  }
+
+  // Turn a PowerSchool export (CSV or tab-delimited) into {name, gender, pin} rows.
+  const parseCsv = (text: string): { name: string; gender: string; pin: string }[] => {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim())
+    if (lines.length < 2) return []
+    const delim = lines[0].includes('\t') ? '\t' : ','
+    const header = parseLine(lines[0], delim).map((h) => h.toLowerCase().replace(/[^a-z]/g, ''))
+    const idx = (...names: string[]) => header.findIndex((h) => names.includes(h))
+
+    const iLastFirst = idx('lastfirst', 'name', 'studentname')
+    const iLast = idx('lastname', 'last')
+    const iFirst = idx('firstname', 'first')
+    const iGender = idx('gender', 'sex')
+    const iPin = idx('pin', 'password')
+
+    return lines.slice(1).map((line) => {
+      const cols = parseLine(line, delim)
+      let name = ''
+      if (iLastFirst >= 0 && cols[iLastFirst]) name = cols[iLastFirst]
+      else if (iLast >= 0 && iFirst >= 0) name = `${cols[iLast] ?? ''}, ${cols[iFirst] ?? ''}`.trim()
+      return {
+        name,
+        gender: iGender >= 0 ? cols[iGender] ?? '' : '',
+        pin: iPin >= 0 ? cols[iPin] ?? '' : '',
+      }
+    }).filter((r) => r.name)
+  }
+
+  const handleFile = async (file: File) => {
+    setImporting(true); setError(''); setImportResult(null)
+    try {
+      const text = await file.text()
+      const parsed = parseCsv(text)
+      if (parsed.length === 0) {
+        setError('No students found. Make sure the file has a header row with name and gender columns.')
+        setImporting(false); return
+      }
+      const res = await fetch('/api/admin/students/import', {
+        method: 'POST', headers, body: JSON.stringify({ students: parsed }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? 'Import failed'); setImporting(false); return }
+      setImportResult(data)
+      onRefresh()
+    } catch {
+      setError('Could not read that file.')
+    }
+    setImporting(false)
+  }
 
   const handleAdd = async () => {
     if (!form.name || !form.pin || form.pin.length !== 4) { setError('Name and 4-digit PIN required'); return }
@@ -85,6 +154,55 @@ export default function StudentManager({ students, token, onRefresh }: Props) {
           </button>
         </div>
         {error && <p className="mt-2 text-sm font-medium text-red-500">{error}</p>}
+      </div>
+
+      {/* Bulk import */}
+      <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-purple-800">Import from PowerSchool</h3>
+        <p className="mb-4 text-sm text-gray-500">
+          Upload a CSV or tab-delimited file exported from PowerSchool. It should have a header row including a
+          name column (<span className="font-mono text-xs">LastFirst</span>, or separate{' '}
+          <span className="font-mono text-xs">Last_Name</span> / <span className="font-mono text-xs">First_Name</span>)
+          and a <span className="font-mono text-xs">Gender</span> column. Include a{' '}
+          <span className="font-mono text-xs">PIN</span> column to set PINs, or leave it out and a random 4-digit
+          PIN will be generated for each student.
+        </p>
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-purple-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-purple-900">
+          {importing ? 'Importing...' : 'Choose CSV file'}
+          <input
+            type="file"
+            accept=".csv,.tsv,.txt,text/csv"
+            className="hidden"
+            disabled={importing}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = '' }}
+          />
+        </label>
+
+        {importResult && (
+          <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm">
+            <p className="font-semibold text-emerald-800">
+              Imported {importResult.inserted} student{importResult.inserted !== 1 ? 's' : ''}
+              {importResult.skippedCount > 0 && ` — skipped ${importResult.skippedCount} (missing name or gender)`}
+            </p>
+            {importResult.generated.length > 0 && (
+              <div className="mt-3">
+                <p className="mb-1 font-semibold text-gray-900">Generated PINs — save these, they can&apos;t be viewed again:</p>
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-emerald-200 bg-white">
+                  <table className="w-full text-xs">
+                    <tbody className="divide-y divide-gray-100">
+                      {importResult.generated.map((g, i) => (
+                        <tr key={i}>
+                          <td className="px-3 py-1.5 text-gray-900">{g.name}</td>
+                          <td className="px-3 py-1.5 font-mono font-bold text-purple-800">{g.pin}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Search */}

@@ -22,6 +22,7 @@ export default function CheckoutForm({ gender, title, students, teachers, active
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState<{ text: string; type: 'error' | 'warn' } | null>(null)
   const [showPin, setShowPin] = useState(false)
+  const [limitVideo, setLimitVideo] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -49,7 +50,10 @@ export default function CheckoutForm({ gender, title, students, teachers, active
       body: JSON.stringify({ studentId, teacherId, roomId: t?.room_id ?? teacherId, location, pin }),
     })
     const data = await res.json()
-    if (!res.ok) { if (data.limitReached) flash(data.error, 'warn'); return data.error ?? 'Checkout failed' }
+    if (!res.ok) {
+      if (data.limitReached) { flash(data.error, 'warn'); setShowPin(false); setLimitVideo(data.error) }
+      return data.error ?? 'Checkout failed'
+    }
     if (selectedStudent) onCheckoutSuccess(data.checkout, selectedStudent)
     setStudentId(''); setTeacherId(''); setLocation(''); setSearch('')
     return null
@@ -111,6 +115,23 @@ export default function CheckoutForm({ gender, title, students, teachers, active
       {showPin && selectedStudent && (
         <PinModal title={`PIN for ${selectedStudent.name.split(',')[1]?.trim() ?? selectedStudent.name}`}
           onSubmit={submitCheckout} onClose={() => setShowPin(false)} />
+      )}
+
+      {limitVideo && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4">
+          <video
+            src="/limit-reached.mp4"
+            autoPlay
+            playsInline
+            onEnded={() => setLimitVideo(null)}
+            className="max-h-[70vh] w-auto max-w-full rounded-xl shadow-2xl"
+          />
+          <p className="mt-6 max-w-lg text-center text-2xl font-bold text-white">{limitVideo}</p>
+          <button onClick={() => setLimitVideo(null)}
+            className="mt-6 rounded-xl bg-white px-8 py-3 text-lg font-bold text-gray-900 hover:bg-gray-100">
+            Close
+          </button>
+        </div>
       )}
     </div>
   )

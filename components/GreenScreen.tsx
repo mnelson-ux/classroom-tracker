@@ -49,6 +49,14 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
   const globe = useRotatingGlobe()
   const today = formatDate(new Date())
 
+  // Background color depends on where the student went.
+  const bgByLocation: Record<string, string> = {
+    Bathroom: 'bg-yellow-500',
+    Office: 'bg-emerald-500',
+    Nurse: 'bg-red-500',
+  }
+  const bgColor = bgByLocation[checkout.location] ?? 'bg-emerald-500'
+
   const handleCheckin = async (pin: string): Promise<string | null> => {
     const res = await fetch('/api/checkin', {
       method: 'POST',
@@ -66,7 +74,7 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
     : student.name
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-emerald-500">
+    <div className={`fixed inset-0 z-40 flex flex-col ${bgColor}`}>
       {/* Top info strip */}
       <div className="flex items-center justify-between px-8 pt-8">
         <div className="rounded-full bg-white/20 px-4 py-2">
@@ -104,7 +112,7 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
       <div className="px-8 pb-10">
         <button
           onClick={() => setShowPin(true)}
-          className="w-full rounded-2xl bg-white py-5 text-lg font-bold text-emerald-600 shadow-lg transition hover:bg-emerald-50 active:scale-[0.98]"
+          className="w-full rounded-2xl bg-white py-5 text-lg font-bold text-gray-900 shadow-lg transition hover:bg-gray-100 active:scale-[0.98]"
         >
           Check Back In
         </button>
