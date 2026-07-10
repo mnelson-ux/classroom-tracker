@@ -57,13 +57,14 @@ export default function HomePage() {
     try { const stored = localStorage.getItem('auth'); if (stored) setAuth(JSON.parse(stored)) } catch {}
     const handleVisibility = () => { if (document.visibilityState === 'visible') loadData() }
     document.addEventListener('visibilitychange', handleVisibility)
+    const pollInterval = setInterval(loadData, 30000)
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
     if (url.includes('placeholder')) return
     const channel = supabase.channel('checkouts-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'checkouts' }, () => {
         fetch(`/api/checkouts?t=${Date.now()}`, { cache: 'no-store' }).then(r => r.json()).then(d => { if (Array.isArray(d)) setActiveCheckouts(d) }).catch(() => {})
       }).subscribe()
-    return () => { supabase.removeChannel(channel); document.removeEventListener('visibilitychange', handleVisibility) }
+    return () => { supabase.removeChannel(channel); document.removeEventListener('visibilitychange', handleVisibility); clearInterval(pollInterval) }
   }, [loadData])
 
   const handleLogout = async () => {

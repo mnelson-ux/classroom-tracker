@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabaseAdmin
     .from('teachers')
-    .insert({ name, username, password_hash, room_id: room_id || null })
+    .insert({ name, username, password_hash, room_id: room_id || null, active: true })
     .select('id, name, username, room_id, active')
     .single()
 
