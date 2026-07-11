@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
+import { runAutoResetForSchool } from '@/lib/autoReset'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,38 +48,9 @@ export async function POST(request: Request) {
   }
 
   if (action === 'auto_check') {
-    // Runs on admin load: perform the year-end reset if it's due for this school.
-    const { data: rows } = await supabaseAdmin
-      .from('settings')
-      .select('key, value')
-      .eq('school', school)
-      .in('key', ['auto_reset_enabled', 'auto_reset_date', 'auto_reset_last_year'])
-    const cfg: Record<string, string> = {}
-    rows?.forEach((r) => { cfg[r.key] = r.value })
-
-    if (cfg.auto_reset_enabled !== 'true' || !cfg.auto_reset_date) {
-      return NextResponse.json({ triggered: false })
-    }
-    const now = new Date()
-    const thisYear = now.getFullYear()
-    const lastYear = parseInt(cfg.auto_reset_last_year || '0')
-    const d = new Date(`${cfg.auto_reset_date}T00:00:00`)
-    if (isNaN(d.getTime())) return NextResponse.json({ triggered: false })
-    const resetThisYear = new Date(thisYear, d.getMonth(), d.getDate())
-
-    if (lastYear < thisYear && now >= resetThisYear) {
-      const { error, count } = await supabaseAdmin
-        .from('checkouts')
-        .delete({ count: 'exact' })
-        .eq('school', school)
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-      await supabaseAdmin.from('settings')
-        .update({ value: String(thisYear) })
-        .eq('key', 'auto_reset_last_year')
-        .eq('school', school)
-      return NextResponse.json({ triggered: true, message: `Year-end reset ran — deleted ${count ?? 0} checkout record(s).` })
-    }
-    return NextResponse.json({ triggered: false })
+    const r = await runAutoResetForSchool(school)
+    if (r.error) return NextResponse.json({ error: r.error }, { status: 500 })
+    return NextResponse.json(r)
   }
 
   if (action === 'reset_settings') {
