@@ -86,17 +86,28 @@ export default function ReportsPage() {
     .map((t) => ({ ...t, students: searching ? t.students.filter((s) => nameMatches(s.student_name, studentSearch)) : t.students }))
     .filter((t) => !searching || t.students.length > 0)
 
-  // Grand total across all visible teachers for the selected location, per period.
-  const totalFor = (get: (t: TeacherAgg) => PeriodStats): PeriodStats => {
-    const b = visibleTeachers.reduce(
-      (acc, t) => {
-        const x = get(t)[loc] ?? EMPTY
-        return { trips: acc.trips + x.trips, minutes: acc.minutes + x.minutes }
-      },
-      { trips: 0, minutes: 0 },
-    )
-    return { [loc]: b }
+  // When searching, total each matched student's activity across ALL teachers, per location.
+  const addBucket = (into: PeriodStats, key: string, b: Bucket) => {
+    if (!into[key]) into[key] = { trips: 0, minutes: 0 }
+    into[key].trips += b.trips
+    into[key].minutes += b.minutes
   }
+  const studentSummaries = (() => {
+    if (!searching) return []
+    const byName: Record<string, { name: string; week: PeriodStats; month: PeriodStats; all: PeriodStats }> = {}
+    for (const t of visibleTeachers) {
+      for (const s of t.students) {
+        if (!byName[s.student_name]) byName[s.student_name] = { name: s.student_name, week: {}, month: {}, all: {} }
+        const acc = byName[s.student_name]
+        for (const period of ['week', 'month', 'all'] as const) {
+          for (const [k, b] of Object.entries(s[period])) addBucket(acc[period], k, b)
+        }
+      }
+    }
+    return Object.values(byName).sort((a, b) => a.name.localeCompare(b.name))
+  })()
+
+  const locationRows = ['Bathroom', 'Office', 'Nurse', ...locations.filter((l) => !STANDARD.includes(l))]
 
   return (
     <div className="min-h-screen">
@@ -147,6 +158,42 @@ export default function ReportsPage() {
           />
         </div>
 
+        {/* Per-student totals across ALL teachers (shown when searching) */}
+        {!loading && searching && studentSummaries.map((su) => (
+          <div key={su.name} className="mb-6 overflow-x-auto rounded-2xl border border-purple-200 bg-white shadow-sm">
+            <div className="border-b border-purple-100 bg-purple-50 px-4 py-3">
+              <h3 className="font-bold text-purple-900">{su.name}</h3>
+              <p className="text-xs text-purple-700">Total across all teachers</p>
+            </div>
+            <table className="w-full text-sm">
+              <thead className="border-b border-gray-200 bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Location</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">This Week</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">This Month</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">All Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {locationRows.map((locName) => (
+                  <tr key={locName}>
+                    <td className="px-4 py-3 font-medium text-gray-700">{locName}</td>
+                    <Cell stats={su.week} loc={locName} />
+                    <Cell stats={su.month} loc={locName} />
+                    <Cell stats={su.all} loc={locName} />
+                  </tr>
+                ))}
+                <tr className="border-t-2 border-gray-300 bg-purple-50">
+                  <td className="px-4 py-3 font-bold text-purple-900">Total (all locations)</td>
+                  <Cell stats={su.week} loc="Total" />
+                  <Cell stats={su.month} loc="Total" />
+                  <Cell stats={su.all} loc="Total" />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ))}
+
         {loading ? (
           <p className="text-sm text-gray-500">Loading…</p>
         ) : teachers.length === 0 ? (
@@ -190,17 +237,6 @@ export default function ReportsPage() {
                   </Fragment>
                 ))}
               </tbody>
-              <tfoot className="border-t-2 border-gray-300 bg-purple-50">
-                <tr>
-                  <td className="px-4 py-3 font-bold text-purple-900">
-                    {searching ? 'Total (matching students)' : 'All Teachers'}
-                    <span className="font-normal normal-case text-purple-400"> · {loc}</span>
-                  </td>
-                  <Cell stats={totalFor((t) => t.week)} loc={loc} />
-                  <Cell stats={totalFor((t) => t.month)} loc={loc} />
-                  <Cell stats={totalFor((t) => t.all)} loc={loc} />
-                </tr>
-              </tfoot>
             </table>
           </div>
         )}
