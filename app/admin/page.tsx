@@ -21,6 +21,7 @@ export default function AdminPage() {
   const [rooms, setRooms] = useState<Room[]>([])
   const [settings, setSettings] = useState<any[]>([])
   const [loadError, setLoadError] = useState('')
+  const [autoResetNotice, setAutoResetNotice] = useState('')
 
   useEffect(() => {
     try {
@@ -36,6 +37,26 @@ export default function AdminPage() {
     } catch {}
     window.location.href = '/'
   }, [])
+
+  // On load, run the automatic year-end reset for any school where it's due.
+  useEffect(() => {
+    if (!auth?.token) return
+    ;(async () => {
+      const notices: string[] = []
+      for (const sc of ['hs', 'ms']) {
+        try {
+          const res = await fetch('/api/admin/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+            body: JSON.stringify({ action: 'auto_check', school: sc }),
+          })
+          const d = await res.json()
+          if (d.triggered) notices.push(`${sc === 'hs' ? 'High School' : 'Middle School'}: ${d.message}`)
+        } catch {}
+      }
+      if (notices.length) { setAutoResetNotice(notices.join(' ')); loadAll() }
+    })()
+  }, [auth]) // eslint-disable-line
 
   const loadAll = async () => {
     if (!auth?.token) return
@@ -94,6 +115,12 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen">
+      {autoResetNotice && (
+        <div className="bg-amber-100 px-6 py-3 text-center text-sm font-semibold text-amber-800">
+          ⏰ Automatic year-end reset ran — {autoResetNotice}
+          <button onClick={() => setAutoResetNotice('')} className="ml-3 underline">dismiss</button>
+        </div>
+      )}
       {/* Top bar */}
       <div className="border-b border-gray-200 bg-white px-6 py-4">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
