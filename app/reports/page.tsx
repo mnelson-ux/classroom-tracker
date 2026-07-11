@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useState } from 'react'
 import { SCHOOLS, isSchool } from '@/lib/schools'
+import { nameMatches } from '@/lib/search'
 import type { AuthState } from '@/lib/types'
 
 interface Bucket { trips: number; minutes: number }
@@ -36,6 +37,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [school, setSchool] = useState('hs')
+  const [studentSearch, setStudentSearch] = useState('')
 
   useEffect(() => {
     // Default the school from the ?school= param the site link passes in.
@@ -78,6 +80,12 @@ export default function ReportsPage() {
   const STANDARD = ['Bathroom', 'Office', 'Nurse']
   const tabs = ['Total', ...STANDARD, ...locations.filter((l) => !STANDARD.includes(l))]
 
+  // When searching for a student, filter each teacher's students and hide teachers with no match.
+  const searching = studentSearch.trim().length > 0
+  const visibleTeachers = teachers
+    .map((t) => ({ ...t, students: searching ? t.students.filter((s) => nameMatches(s.student_name, studentSearch)) : t.students }))
+    .filter((t) => !searching || t.students.length > 0)
+
   return (
     <div className="min-h-screen">
       <div className="border-b border-gray-200 bg-white px-6 py-4">
@@ -103,25 +111,36 @@ export default function ReportsPage() {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-6">
-        {/* Location filter */}
-        <div className="mb-5 inline-flex flex-wrap gap-1 rounded-xl bg-white p-1 shadow-sm">
-          {tabs.map((l) => (
-            <button
-              key={l}
-              onClick={() => setLoc(l)}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                loc === l ? 'bg-purple-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              {l}
-            </button>
-          ))}
+        {/* Location filter + student search */}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex flex-wrap gap-1 rounded-xl bg-white p-1 shadow-sm">
+            {tabs.map((l) => (
+              <button
+                key={l}
+                onClick={() => setLoc(l)}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  loc === l ? 'bg-purple-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+            placeholder="Search a student…"
+            className="w-full max-w-xs rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-700/20"
+          />
         </div>
 
         {loading ? (
           <p className="text-sm text-gray-500">Loading…</p>
         ) : teachers.length === 0 ? (
           <p className="text-sm italic text-gray-500">No checkout data yet.</p>
+        ) : visibleTeachers.length === 0 ? (
+          <p className="text-sm italic text-gray-500">No students match “{studentSearch}”.</p>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
             <table className="w-full text-sm">
@@ -136,19 +155,19 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {teachers.map((t) => (
+                {visibleTeachers.map((t) => (
                   <Fragment key={t.teacher_id}>
                     <tr className="cursor-pointer hover:bg-gray-50"
                       onClick={() => setExpanded((e) => ({ ...e, [t.teacher_id]: !e[t.teacher_id] }))}>
                       <td className="px-4 py-3 font-semibold text-gray-900">
-                        <span className="mr-2 inline-block text-gray-400">{expanded[t.teacher_id] ? '▾' : '▸'}</span>
+                        <span className="mr-2 inline-block text-gray-400">{(searching || expanded[t.teacher_id]) ? '▾' : '▸'}</span>
                         {t.teacher_name}
                       </td>
                       <Cell stats={t.week} loc={loc} />
                       <Cell stats={t.month} loc={loc} />
                       <Cell stats={t.all} loc={loc} />
                     </tr>
-                    {expanded[t.teacher_id] && t.students.map((s) => (
+                    {(searching || expanded[t.teacher_id]) && t.students.map((s) => (
                       <tr key={`${t.teacher_id}-${s.student_name}`} className="bg-gray-50/50">
                         <td className="py-2 pl-12 pr-4 text-gray-700">{s.student_name}</td>
                         <Cell stats={s.week} loc={loc} />
