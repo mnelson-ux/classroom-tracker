@@ -32,6 +32,7 @@ export default function ReportsPage() {
   const [auth, setAuth] = useState<AuthState | null>(null)
   const [checking, setChecking] = useState(true)
   const [teachers, setTeachers] = useState<TeacherAgg[]>([])
+  const [roster, setRoster] = useState<StudentAgg[]>([])
   const [locations, setLocations] = useState<string[]>([])
   const [loc, setLoc] = useState('Total')
   const [loading, setLoading] = useState(true)
@@ -62,6 +63,7 @@ export default function ReportsPage() {
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d.teachers)) setTeachers(d.teachers)
+        if (Array.isArray(d.students)) setRoster(d.students)
         if (Array.isArray(d.locations)) setLocations(d.locations)
       })
       .catch(() => {})
@@ -86,26 +88,11 @@ export default function ReportsPage() {
     .map((t) => ({ ...t, students: searching ? t.students.filter((s) => nameMatches(s.student_name, studentSearch)) : t.students }))
     .filter((t) => !searching || t.students.length > 0)
 
-  // When searching, total each matched student's activity across ALL teachers, per location.
-  const addBucket = (into: PeriodStats, key: string, b: Bucket) => {
-    if (!into[key]) into[key] = { trips: 0, minutes: 0 }
-    into[key].trips += b.trips
-    into[key].minutes += b.minutes
-  }
-  const studentSummaries = (() => {
-    if (!searching) return []
-    const byName: Record<string, { name: string; week: PeriodStats; month: PeriodStats; all: PeriodStats }> = {}
-    for (const t of visibleTeachers) {
-      for (const s of t.students) {
-        if (!byName[s.student_name]) byName[s.student_name] = { name: s.student_name, week: {}, month: {}, all: {} }
-        const acc = byName[s.student_name]
-        for (const period of ['week', 'month', 'all'] as const) {
-          for (const [k, b] of Object.entries(s[period])) addBucket(acc[period], k, b)
-        }
-      }
-    }
-    return Object.values(byName).sort((a, b) => a.name.localeCompare(b.name))
-  })()
+  // When searching, show each matched student's cross-teacher totals from the full roster
+  // (so any student is findable, showing zeros if they have no prior checkouts).
+  const studentSummaries = searching
+    ? roster.filter((s) => nameMatches(s.student_name, studentSearch))
+    : []
 
   const locationRows = ['Bathroom', 'Office', 'Nurse', ...locations.filter((l) => !STANDARD.includes(l))]
 
@@ -160,9 +147,9 @@ export default function ReportsPage() {
 
         {/* Per-student totals across ALL teachers (shown when searching) */}
         {!loading && searching && studentSummaries.map((su) => (
-          <div key={su.name} className="mb-6 overflow-x-auto rounded-2xl border border-purple-200 bg-white shadow-sm">
+          <div key={su.student_name} className="mb-6 overflow-x-auto rounded-2xl border border-purple-200 bg-white shadow-sm">
             <div className="border-b border-purple-100 bg-purple-50 px-4 py-3">
-              <h3 className="font-bold text-purple-900">{su.name}</h3>
+              <h3 className="font-bold text-purple-900">{su.student_name}</h3>
               <p className="text-xs text-purple-700">Total across all teachers</p>
             </div>
             <table className="w-full text-sm">
@@ -196,10 +183,12 @@ export default function ReportsPage() {
 
         {loading ? (
           <p className="text-sm text-gray-500">Loading…</p>
-        ) : teachers.length === 0 ? (
-          <p className="text-sm italic text-gray-500">No checkout data yet.</p>
-        ) : visibleTeachers.length === 0 ? (
+        ) : searching && studentSummaries.length === 0 ? (
           <p className="text-sm italic text-gray-500">No students match “{studentSearch}”.</p>
+        ) : searching && visibleTeachers.length === 0 ? (
+          <p className="text-sm italic text-gray-500">No check-outs recorded for this student yet.</p>
+        ) : !searching && teachers.length === 0 ? (
+          <p className="text-sm italic text-gray-500">No checkout data yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
             <table className="w-full text-sm">

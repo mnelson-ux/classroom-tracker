@@ -40,6 +40,11 @@ export async function GET(request: Request) {
   const { data: checkouts, error } = await cq
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Full roster so every student is searchable, even with zero checkouts.
+  let rq = supabaseAdmin.from('students').select('id, name').eq('active', true).order('name')
+  if (school) rq = rq.eq('school', school)
+  const { data: roster } = await rq
+
   type StudentAgg = { student_name: string; week: PeriodStats; month: PeriodStats; all: PeriodStats }
   type TeacherAgg = {
     teacher_id: string
@@ -50,6 +55,12 @@ export async function GET(request: Request) {
 
   const teachers: Record<string, TeacherAgg> = {}
   const locationSet = new Set<string>()
+
+  // Cross-teacher per-student totals, seeded with the whole roster (zeros).
+  const studentTotals: Record<string, StudentAgg> = {}
+  for (const r of (roster ?? []) as any[]) {
+    studentTotals[r.name] = { student_name: r.name, week: {}, month: {}, all: {} }
+  }
 
   for (const c of (checkouts ?? []) as any[]) {
     const tId = c.teacher_id ?? 'unknown'
@@ -68,10 +79,12 @@ export async function GET(request: Request) {
       t.students[sName] = { student_name: sName, week: {}, month: {}, all: {} }
     }
     const s = t.students[sName]
+    if (!studentTotals[sName]) studentTotals[sName] = { student_name: sName, week: {}, month: {}, all: {} }
+    const st = studentTotals[sName]
 
-    addTo(t.all, location, mins); addTo(s.all, location, mins)
-    if (when && when >= monthStart) { addTo(t.month, location, mins); addTo(s.month, location, mins) }
-    if (when && when >= weekStart) { addTo(t.week, location, mins); addTo(s.week, location, mins) }
+    addTo(t.all, location, mins); addTo(s.all, location, mins); addTo(st.all, location, mins)
+    if (when && when >= monthStart) { addTo(t.month, location, mins); addTo(s.month, location, mins); addTo(st.month, location, mins) }
+    if (when && when >= weekStart) { addTo(t.week, location, mins); addTo(s.week, location, mins); addTo(st.week, location, mins) }
   }
 
   const result = Object.values(teachers)
@@ -81,7 +94,9 @@ export async function GET(request: Request) {
     }))
     .sort((a, b) => a.teacher_name.localeCompare(b.teacher_name))
 
-  return NextResponse.json({ teachers: result, locations: Array.from(locationSet).sort() }, {
+  const students = Object.values(studentTotals).sort((a, b) => a.student_name.localeCompare(b.student_name))
+
+  return NextResponse.json({ teachers: result, students, locations: Array.from(locationSet).sort() }, {
     headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
   })
 }
