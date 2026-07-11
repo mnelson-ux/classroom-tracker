@@ -86,7 +86,8 @@ export async function POST(request: Request) {
       .eq('key', 'time_limit_minutes')
       .eq('school', student.school)
       .single()
-    const limitMinutes = parseInt(settingRow?.value ?? '10')
+    // Per-student accommodation (IEP/504) overrides the school default when set.
+    const limitMinutes = student.bathroom_limit_minutes ?? parseInt(settingRow?.value ?? '10')
 
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)

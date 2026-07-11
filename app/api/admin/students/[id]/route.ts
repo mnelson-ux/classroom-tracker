@@ -16,6 +16,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   if (body.school) update.school = body.school
   if (typeof body.active === 'boolean') update.active = body.active
   if (body.pin) update.pin_hash = await bcrypt.hash(body.pin, 10)
+  // Accommodation override: '' or null clears it (back to school default).
+  if ('bathroom_limit_minutes' in body) {
+    update.bathroom_limit_minutes = body.bathroom_limit_minutes === '' || body.bathroom_limit_minutes == null
+      ? null : parseInt(body.bathroom_limit_minutes)
+  }
 
   const { data, error } = await supabaseAdmin
     .from('students')

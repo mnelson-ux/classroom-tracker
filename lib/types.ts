@@ -31,6 +31,7 @@ export interface Student {
   pin_hash: string
   active: boolean
   school: string
+  bathroom_limit_minutes: number | null
   created_at: string
 }
 

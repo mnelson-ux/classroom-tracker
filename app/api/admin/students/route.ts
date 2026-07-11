@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   const school = new URL(request.url).searchParams.get('school')
   let query = supabaseAdmin
     .from('students')
-    .select('id, name, gender, active, school, created_at')
+    .select('id, name, gender, active, school, bathroom_limit_minutes, created_at')
     .order('name')
   if (school) query = query.eq('school', school)
 
@@ -25,17 +25,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { name, gender, pin, school } = await request.json()
+  const { name, gender, pin, school, bathroom_limit_minutes } = await request.json()
   if (!name || !gender || !pin) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
   const pin_hash = await bcrypt.hash(pin, 10)
+  const limit = bathroom_limit_minutes === '' || bathroom_limit_minutes == null
+    ? null : parseInt(bathroom_limit_minutes)
 
   const { data, error } = await supabaseAdmin
     .from('students')
-    .insert({ name, gender, pin_hash, active: true, school: school ?? 'hs' })
-    .select('id, name, gender, active, school')
+    .insert({ name, gender, pin_hash, active: true, school: school ?? 'hs', bathroom_limit_minutes: limit })
+    .select('id, name, gender, active, school, bathroom_limit_minutes')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

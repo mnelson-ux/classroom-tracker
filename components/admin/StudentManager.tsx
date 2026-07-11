@@ -12,12 +12,12 @@ interface Props {
   onRefresh: () => void
 }
 
-const emptyForm = { name: '', gender: 'female' as 'male' | 'female', pin: '' }
+const emptyForm = { name: '', gender: 'female' as 'male' | 'female', pin: '', bathroomLimit: '' }
 
 export default function StudentManager({ students, token, school, onRefresh }: Props) {
   const [form, setForm] = useState(emptyForm)
   const [editId, setEditId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState({ name: '', gender: 'female' as 'male' | 'female', pin: '', active: true })
+  const [editForm, setEditForm] = useState({ name: '', gender: 'female' as 'male' | 'female', pin: '', active: true, bathroomLimit: '' })
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -100,7 +100,7 @@ export default function StudentManager({ students, token, school, onRefresh }: P
   const handleAdd = async () => {
     if (!form.name || !form.pin || form.pin.length !== 4) { setError('Name and 4-digit PIN required'); return }
     setLoading(true); setError('')
-    const res = await fetch('/api/admin/students', { method: 'POST', headers, body: JSON.stringify({ ...form, school }) })
+    const res = await fetch('/api/admin/students', { method: 'POST', headers, body: JSON.stringify({ name: form.name, gender: form.gender, pin: form.pin, bathroom_limit_minutes: form.bathroomLimit, school }) })
     const data = await res.json()
     if (!res.ok) { setError(data.error); setLoading(false); return }
     setForm(emptyForm); onRefresh(); setLoading(false)
@@ -108,13 +108,16 @@ export default function StudentManager({ students, token, school, onRefresh }: P
 
   const startEdit = (s: Student) => {
     setEditId(s.id)
-    setEditForm({ name: s.name, gender: s.gender, pin: '', active: s.active })
+    setEditForm({ name: s.name, gender: s.gender, pin: '', active: s.active, bathroomLimit: s.bathroom_limit_minutes?.toString() ?? '' })
   }
 
   const handleSaveEdit = async () => {
     if (!editId) return
     setLoading(true); setError('')
-    const body: Record<string, unknown> = { name: editForm.name, gender: editForm.gender, active: editForm.active }
+    const body: Record<string, unknown> = {
+      name: editForm.name, gender: editForm.gender, active: editForm.active,
+      bathroom_limit_minutes: editForm.bathroomLimit,
+    }
     if (editForm.pin) body.pin = editForm.pin
     const res = await fetch(`/api/admin/students/${editId}`, { method: 'PUT', headers, body: JSON.stringify(body) })
     const data = await res.json()
@@ -149,7 +152,7 @@ export default function StudentManager({ students, token, school, onRefresh }: P
       {/* Add form */}
       <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-purple-800">Add New Student</h3>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <input type="text" placeholder="Full name (Last, First)" value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })} className={input} />
           <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as 'male' | 'female' })} className={select}>
@@ -158,11 +161,14 @@ export default function StudentManager({ students, token, school, onRefresh }: P
           </select>
           <input type="text" placeholder="4-digit PIN" maxLength={4} value={form.pin}
             onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '') })} className={input} />
+          <input type="number" min="0" placeholder="Bathroom min (optional)" value={form.bathroomLimit}
+            onChange={(e) => setForm({ ...form, bathroomLimit: e.target.value })} className={input} />
           <button onClick={handleAdd} disabled={loading}
             className="rounded-xl bg-purple-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-purple-900 disabled:opacity-40">
             Add Student
           </button>
         </div>
+        <p className="mt-2 text-xs text-gray-500">Bathroom minutes is an optional IEP/504 accommodation — leave blank to use the school default.</p>
         {error && <p className="mt-2 text-sm font-medium text-red-500">{error}</p>}
       </div>
 
@@ -227,6 +233,7 @@ export default function StudentManager({ students, token, school, onRefresh }: P
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Name</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Gender</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Bathroom Limit</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
             </tr>
@@ -248,6 +255,11 @@ export default function StudentManager({ students, token, school, onRefresh }: P
                       </select>
                     </td>
                     <td className="px-4 py-3">
+                      <input type="number" min="0" placeholder="Default" value={editForm.bathroomLimit}
+                        onChange={(e) => setEditForm({ ...editForm, bathroomLimit: e.target.value })}
+                        className="w-24 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-purple-700 focus:outline-none" />
+                    </td>
+                    <td className="px-4 py-3">
                       <input type="text" placeholder="New PIN (blank = keep)" maxLength={4} value={editForm.pin}
                         onChange={(e) => setEditForm({ ...editForm, pin: e.target.value.replace(/\D/g, '') })}
                         className="w-32 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-purple-700 focus:outline-none" />
@@ -263,6 +275,15 @@ export default function StudentManager({ students, token, school, onRefresh }: P
                   <>
                     <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
                     <td className="px-4 py-3 capitalize text-gray-500">{s.gender}</td>
+                    <td className="px-4 py-3">
+                      {s.bathroom_limit_minutes != null ? (
+                        <span className="rounded-full bg-purple-100 px-2.5 py-1 text-xs font-semibold text-purple-800" title="IEP/504 accommodation">
+                          ⏱ {s.bathroom_limit_minutes} min
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">Default</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${s.active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
                         {s.active ? 'Active' : 'Inactive'}
@@ -283,7 +304,7 @@ export default function StudentManager({ students, token, school, onRefresh }: P
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-sm italic text-gray-500">No students found</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm italic text-gray-500">No students found</td></tr>
             )}
           </tbody>
         </table>
