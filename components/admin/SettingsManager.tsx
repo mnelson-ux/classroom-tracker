@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { schoolLabel } from '@/lib/schools'
 
 interface SettingRow {
   key: string
@@ -23,6 +24,31 @@ export default function SettingsManager({ settings, token, school, onRefresh }: 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [resetting, setResetting] = useState('')
+  const [resetMsg, setResetMsg] = useState('')
+
+  const label = schoolLabel(school)
+
+  const runReset = async (action: string, opts: { confirm: string; typed?: string }) => {
+    if (opts.typed) {
+      const input = window.prompt(`This permanently affects ${label} data and cannot be undone.\n\nType ${opts.typed} to confirm:`)
+      if (input !== opts.typed) return
+    } else if (!window.confirm(opts.confirm)) {
+      return
+    }
+    setResetting(action); setResetMsg(''); setError('')
+    const res = await fetch('/api/admin/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action, school }),
+    })
+    const data = await res.json()
+    setResetting('')
+    if (!res.ok) { setError(data.error ?? 'Reset failed'); return }
+    setResetMsg(data.message ?? 'Done')
+    onRefresh()
+    setTimeout(() => setResetMsg(''), 6000)
+  }
 
   // Re-sync the editable values whenever the loaded settings change (e.g. switching school).
   useEffect(() => {
@@ -91,6 +117,61 @@ export default function SettingsManager({ settings, token, school, onRefresh }: 
         </button>
         {saved && <span className="text-sm font-semibold text-emerald-600">✓ Settings saved</span>}
         {error && <span className="text-sm text-red-500">{error}</span>}
+      </div>
+
+      {/* Reset / data management */}
+      <div className="mt-10 rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
+        <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-red-600">Reset &amp; Data</h3>
+        <p className="mb-5 text-sm text-gray-500">
+          These actions apply to <span className="font-semibold text-gray-900">{label}</span> only. Switch the
+          school toggle at the top to affect the other school.
+        </p>
+
+        <div className="space-y-4">
+          {/* Clear currently-out list */}
+          <div className="flex flex-col gap-2 rounded-xl border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Clear currently-out list</p>
+              <p className="text-xs text-gray-500">Checks everyone back in. Use if students are stuck as “out”. Keeps history.</p>
+            </div>
+            <button
+              onClick={() => runReset('clear_active', { confirm: `Clear the currently-out list for ${label}?` })}
+              disabled={resetting !== ''}
+              className="shrink-0 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 disabled:opacity-40">
+              {resetting === 'clear_active' ? 'Clearing…' : 'Clear board'}
+            </button>
+          </div>
+
+          {/* Reset settings to defaults */}
+          <div className="flex flex-col gap-2 rounded-xl border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Reset settings to defaults</p>
+              <p className="text-xs text-gray-500">Restores titles, bathroom limits, and time limit to their default values.</p>
+            </div>
+            <button
+              onClick={() => runReset('reset_settings', { confirm: `Reset all settings for ${label} to defaults?` })}
+              disabled={resetting !== ''}
+              className="shrink-0 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 disabled:opacity-40">
+              {resetting === 'reset_settings' ? 'Resetting…' : 'Reset settings'}
+            </button>
+          </div>
+
+          {/* Delete all checkout history */}
+          <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-red-700">Delete all checkout history</p>
+              <p className="text-xs text-red-600">Permanently erases every checkout record for {label} (reports &amp; history). Cannot be undone. Students, teachers, and rooms are kept.</p>
+            </div>
+            <button
+              onClick={() => runReset('clear_history', { confirm: '', typed: 'DELETE' })}
+              disabled={resetting !== ''}
+              className="shrink-0 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40">
+              {resetting === 'clear_history' ? 'Deleting…' : 'Delete history'}
+            </button>
+          </div>
+        </div>
+
+        {resetMsg && <p className="mt-4 text-sm font-semibold text-emerald-600">✓ {resetMsg}</p>}
       </div>
     </div>
   )
