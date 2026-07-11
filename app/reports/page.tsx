@@ -86,6 +86,18 @@ export default function ReportsPage() {
     .map((t) => ({ ...t, students: searching ? t.students.filter((s) => nameMatches(s.student_name, studentSearch)) : t.students }))
     .filter((t) => !searching || t.students.length > 0)
 
+  // Grand total across all visible teachers for the selected location, per period.
+  const totalFor = (get: (t: TeacherAgg) => PeriodStats): PeriodStats => {
+    const b = visibleTeachers.reduce(
+      (acc, t) => {
+        const x = get(t)[loc] ?? EMPTY
+        return { trips: acc.trips + x.trips, minutes: acc.minutes + x.minutes }
+      },
+      { trips: 0, minutes: 0 },
+    )
+    return { [loc]: b }
+  }
+
   return (
     <div className="min-h-screen">
       <div className="border-b border-gray-200 bg-white px-6 py-4">
@@ -178,6 +190,17 @@ export default function ReportsPage() {
                   </Fragment>
                 ))}
               </tbody>
+              <tfoot className="border-t-2 border-gray-300 bg-purple-50">
+                <tr>
+                  <td className="px-4 py-3 font-bold text-purple-900">
+                    {searching ? 'Total (matching students)' : 'All Teachers'}
+                    <span className="font-normal normal-case text-purple-400"> · {loc}</span>
+                  </td>
+                  <Cell stats={totalFor((t) => t.week)} loc={loc} />
+                  <Cell stats={totalFor((t) => t.month)} loc={loc} />
+                  <Cell stats={totalFor((t) => t.all)} loc={loc} />
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
