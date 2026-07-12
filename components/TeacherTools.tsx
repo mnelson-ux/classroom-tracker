@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { nameMatches } from '@/lib/search'
 import { SCHOOLS, schoolLabel } from '@/lib/schools'
 import CheckoutPanel from '@/components/CheckoutPanel'
-import GreenScreen from '@/components/GreenScreen'
 import type { Student, Teacher, Checkout } from '@/lib/types'
 
 type View = 'home' | 'issue' | 'excuse' | 'feedback'
@@ -22,7 +21,6 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [students, setStudents] = useState<Student[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [active, setActive] = useState<Checkout[]>([])
-  const [greenScreen, setGreenScreen] = useState<{ checkout: Checkout; student: Student } | null>(null)
   const [, setTick] = useState(0)
 
   const [search, setSearch] = useState('')
@@ -164,12 +162,6 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
         <button onClick={onLogout} className="mt-1 flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-purple-100 transition hover:bg-white/10">🚪 Log Out</button>
       </aside>
 
-      {greenScreen && (
-        <GreenScreen checkout={greenScreen.checkout} student={greenScreen.student}
-          teacher={teachers.find((t) => t.id === greenScreen.checkout.teacher_id)}
-          onCheckedIn={() => { setGreenScreen(null); loadBoard(school) }} />
-      )}
-
       <main className="flex-1 px-4 py-6 md:px-8">
         <div className="mx-auto max-w-4xl">
           {view === 'home' && (
@@ -213,7 +205,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
               <h2 className="mb-4 mt-8 text-2xl font-bold text-gray-900">Check Out a Student</h2>
               <div className="max-w-2xl">
                 <CheckoutPanel students={students} teachers={teachers}
-                  activeCheckouts={active} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
+                  activeCheckouts={active} onCheckoutSuccess={() => loadBoard(school)} />
               </div>
             </>
           )}
