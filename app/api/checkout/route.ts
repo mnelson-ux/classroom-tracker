@@ -46,15 +46,20 @@ export async function POST(request: Request) {
 
     const { data: activeBathroom } = await supabaseAdmin
       .from('checkouts')
-      .select('student_id, teacher_id, students(gender)')
+      .select('student_id, teacher_id, students(gender), teacher:teachers!checkouts_teacher_id_fkey(has_private_bathroom)')
       .eq('is_checked_out', true)
       .eq('location', 'Bathroom')
       .eq('school', student.school)
 
+    // Does the teacher this student is leaving from run a private (non-shared) bathroom?
+    const { data: checkoutTeacher } = await supabaseAdmin
+      .from('teachers').select('has_private_bathroom').eq('id', teacherId).maybeSingle()
+    const isPrivate = !!checkoutTeacher?.has_private_bathroom
+
     const gender = student.gender
     const sameGenderOut = activeBathroom?.filter((c: any) => c.students?.gender === gender) ?? []
 
-    // Check per-room limit
+    // Check per-room limit (applies to everyone, incl. private bathrooms — their own capacity)
     const perRoomLimit = parseInt(
       gender === 'male'
         ? settings.max_bathroom_per_room_boys ?? '1'
@@ -67,16 +72,19 @@ export async function POST(request: Request) {
       }, { status: 409 })
     }
 
-    // Check school-wide total limit
-    const totalLimit = parseInt(
-      gender === 'male'
-        ? settings.max_bathroom_total_boys ?? '2'
-        : settings.max_bathroom_total_girls ?? '2'
-    )
-    if (sameGenderOut.length >= totalLimit) {
-      return NextResponse.json({
-        error: `The bathroom is currently at capacity (${totalLimit} ${gender === 'male' ? 'boys' : 'girls'} max)`,
-      }, { status: 409 })
+    // School-wide shared limit — only for shared-bathroom teachers, counting only shared students.
+    if (!isPrivate) {
+      const totalLimit = parseInt(
+        gender === 'male'
+          ? settings.max_bathroom_total_boys ?? '2'
+          : settings.max_bathroom_total_girls ?? '2'
+      )
+      const sharedOut = sameGenderOut.filter((c: any) => !c.teacher?.has_private_bathroom)
+      if (sharedOut.length >= totalLimit) {
+        return NextResponse.json({
+          error: `The bathroom is currently at capacity (${totalLimit} ${gender === 'male' ? 'boys' : 'girls'} max)`,
+        }, { status: 409 })
+      }
     }
 
     // Check daily time limit

@@ -20,6 +20,7 @@ export interface Teacher {
   room_id: string | null
   active: boolean
   school: string
+  has_private_bathroom: boolean
   created_at: string
   room?: Room
 }
