@@ -120,7 +120,7 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
         </div>
 
         {/* Teacher */}
-        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Your Teacher</label>
+        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Your Current Teacher</label>
         <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className={`mb-6 ${inputCls}`}>
           <option value="">Choose your teacher</option>
           {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}

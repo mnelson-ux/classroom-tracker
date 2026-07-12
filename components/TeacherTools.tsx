@@ -161,12 +161,6 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
         <div className="mx-auto max-w-4xl">
           {view === 'home' && (
             <>
-              <h2 className="mb-4 text-2xl font-bold text-gray-900">Check Out a Student</h2>
-              <div className="mb-8 max-w-2xl">
-                <CheckoutPanel students={students} teachers={teachers}
-                  activeCheckouts={active} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
-              </div>
-
               <h2 className="mb-4 text-2xl font-bold text-gray-900">Currently Out <span className="text-base font-normal text-gray-400">({active.length})</span></h2>
               {active.length === 0 ? (
                 <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
@@ -202,6 +196,12 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                   })}
                 </div>
               )}
+
+              <h2 className="mb-4 mt-8 text-2xl font-bold text-gray-900">Check Out a Student</h2>
+              <div className="max-w-2xl">
+                <CheckoutPanel students={students} teachers={teachers}
+                  activeCheckouts={active} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
+              </div>
             </>
           )}
 
