@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { nameMatches } from '@/lib/search'
-import { schoolLabel } from '@/lib/schools'
+import { SCHOOLS, schoolLabel } from '@/lib/schools'
 import CheckoutForm from '@/components/CheckoutForm'
 import GreenScreen from '@/components/GreenScreen'
 import type { Student, Teacher, Checkout } from '@/lib/types'
@@ -13,10 +13,11 @@ function mins(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
 }
 
-export default function TeacherTools({ token, onLogout }: { token: string; onLogout: () => void }) {
+export default function TeacherTools({ token, onLogout, initialSchool }: { token: string; onLogout: () => void; initialSchool?: string }) {
   const [ready, setReady] = useState(false)
   const [me, setMe] = useState<{ isAdmin: boolean; teacherId: string | null; name: string; school: string | null } | null>(null)
   const [view, setView] = useState<View>('home')
+  const [adminSchool, setAdminSchool] = useState(initialSchool ?? 'hs')
 
   const [students, setStudents] = useState<Student[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
@@ -34,7 +35,8 @@ export default function TeacherTools({ token, onLogout }: { token: string; onLog
   const [exReason, setExReason] = useState('')
   const [exMsg, setExMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
-  const school = me?.school ?? ''
+  // Teachers are pinned to their own school; admins pick which school they're managing.
+  const school = me ? (me.isAdmin ? adminSchool : (me.school ?? '')) : ''
   const authHeaders = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token])
 
   const loadBoard = useCallback(async (sc: string) => {
@@ -53,12 +55,13 @@ export default function TeacherTools({ token, onLogout }: { token: string; onLog
     ;(async () => {
       const r = await fetch('/api/teacher/me', { headers: authHeaders, cache: 'no-store' })
       if (!r.ok) { setReady(true); return }
-      const data = await r.json()
-      setMe(data)
-      if (data.school) await loadBoard(data.school)
+      setMe(await r.json())
       setReady(true)
     })()
-  }, [authHeaders, loadBoard])
+  }, [authHeaders])
+
+  // Load the board whenever the effective school changes (teacher's own, or admin's pick).
+  useEffect(() => { if (school) loadBoard(school) }, [school, loadBoard])
 
   useEffect(() => {
     const id = setInterval(() => setTick((n) => n + 1), 1000)
@@ -108,16 +111,7 @@ export default function TeacherTools({ token, onLogout }: { token: string; onLog
     return <div className="flex min-h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-purple-800" /></div>
   }
 
-  if (me && me.isAdmin) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 p-6 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Teacher Tools</h1>
-        <p className="max-w-md text-gray-500">You&apos;re signed in as an admin. Teacher Tools are for teacher accounts — sign in as a teacher to issue passes and excuses.</p>
-        <button onClick={onLogout} className="rounded-xl bg-purple-800 px-6 py-3 font-semibold text-white hover:bg-purple-900">Log out</button>
-      </div>
-    )
-  }
-
+  const isAdmin = !!me?.isAdmin
   const selName = students.find((s) => s.id === studentId)?.name
   const inputCls = 'w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 focus:border-purple-700 focus:outline-none'
 
@@ -132,15 +126,28 @@ export default function TeacherTools({ token, onLogout }: { token: string; onLog
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="flex flex-col gap-1 bg-gradient-to-b from-purple-800 to-indigo-900 p-4 md:min-h-screen md:w-64">
         <div className="mb-4 border-b border-white/15 pb-4">
-          <h1 className="text-lg font-bold text-white">Teacher Tools</h1>
+          <h1 className="text-lg font-bold text-white">{isAdmin ? 'Staff Tools' : 'Teacher Tools'}</h1>
           <p className="text-sm text-amber-400">{me?.name}</p>
           <p className="text-xs text-purple-200">{schoolLabel(school)}</p>
         </div>
+        {isAdmin && (
+          <div className="mb-3 flex gap-1 rounded-lg bg-white/10 p-1">
+            {SCHOOLS.map((s) => (
+              <button key={s.id} onClick={() => setAdminSchool(s.id)}
+                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition ${adminSchool === s.id ? 'bg-white text-purple-800' : 'text-purple-100 hover:bg-white/10'}`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
         <NavBtn id="home" label="Check Out & Board" icon="🏠" />
         <NavBtn id="issue" label="Issue Pass" icon="🎫" />
         <NavBtn id="excuse" label="Excuse Student" icon="✏️" />
         <div className="my-3 border-t border-white/15" />
         <a href={`/reports?school=${school}`} className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-purple-100 transition hover:bg-white/10">📊 Reports</a>
+        {isAdmin && (
+          <a href="/admin" className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-purple-100 transition hover:bg-white/10">🛠️ Admin Panel</a>
+        )}
         <button onClick={onLogout} className="mt-1 flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-purple-100 transition hover:bg-white/10">🚪 Log Out</button>
       </aside>
 

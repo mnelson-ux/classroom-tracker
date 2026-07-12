@@ -10,8 +10,8 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { studentId, location, destinationTeacherId, reason, issuedBy } = await request.json()
-  const originTeacher = session.user_type === 'teacher' ? session.user_id : issuedBy
-  if (!originTeacher) return NextResponse.json({ error: 'An issuing teacher is required' }, { status: 400 })
+  // Teachers issue as themselves; admins issue as the office (no origin classroom).
+  const originTeacher = session.user_type === 'teacher' ? session.user_id : (issuedBy ?? null)
   if (!studentId || !location) return NextResponse.json({ error: 'Student and destination are required' }, { status: 400 })
 
   const { data: student } = await supabaseAdmin

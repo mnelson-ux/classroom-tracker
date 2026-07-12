@@ -93,9 +93,9 @@ export default function SchoolHomePage() {
     )
   }
 
-  // A logged-in teacher gets the Teacher Tools as their home instead of the student kiosk.
-  if (auth?.userType === 'teacher' && auth.token) {
-    return <TeacherTools token={auth.token} onLogout={handleLogout} />
+  // Logged-in staff (teacher or admin) get the Staff/Teacher Tools instead of the student kiosk.
+  if (auth?.isAuthenticated && auth.token && (auth.userType === 'teacher' || auth.userType === 'admin')) {
+    return <TeacherTools token={auth.token} onLogout={handleLogout} initialSchool={school} />
   }
 
   const pageTitle = settings.page_title ?? `${schoolLabel(school)} Check-In/Out Tracker`
