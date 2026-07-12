@@ -9,6 +9,7 @@ import CheckedOutList from '@/components/CheckedOutList'
 import GreenScreen from '@/components/GreenScreen'
 import LoginModal from '@/components/LoginModal'
 import TeacherTools from '@/components/TeacherTools'
+import MyPassModal from '@/components/MyPassModal'
 import type { Student, Teacher, Checkout, Settings, AuthState } from '@/lib/types'
 
 function useClock() {
@@ -32,6 +33,7 @@ export default function SchoolHomePage() {
   const [settings, setSettings] = useState<Settings>({})
   const [loading, setLoading] = useState(true)
   const [showLogin, setShowLogin] = useState(false)
+  const [showMyPass, setShowMyPass] = useState(false)
   const [auth, setAuth] = useState<AuthState | null>(null)
   const [greenScreen, setGreenScreen] = useState<{ checkout: Checkout; student: Student } | null>(null)
 
@@ -140,6 +142,11 @@ export default function SchoolHomePage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
+        <button onClick={() => setShowMyPass(true)}
+          className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-purple-200 bg-white py-4 text-base font-bold text-purple-800 shadow-sm transition hover:bg-purple-50">
+          🎫 Already have a pass? Tap to show it
+        </button>
+
         <div className="mb-8 grid gap-6 md:grid-cols-2">
           <CheckoutForm gender="female" title={girlsTitle} students={students} teachers={teachers}
             activeCheckouts={activeCheckouts} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
@@ -159,6 +166,14 @@ export default function SchoolHomePage() {
           </div>
         )}
       </main>
+
+      {showMyPass && (
+        <MyPassModal
+          students={students}
+          onFound={(co, st) => { setGreenScreen({ checkout: co, student: st }); setShowMyPass(false) }}
+          onClose={() => setShowMyPass(false)}
+        />
+      )}
 
       {showLogin && (
         <LoginModal onSuccess={(a) => { setAuth(a); setShowLogin(false) }} onClose={() => setShowLogin(false)} />
