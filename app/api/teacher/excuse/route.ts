@@ -4,7 +4,7 @@ import { verifySession, getTokenFromRequest } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-// Log a documented excuse (late arrival or kept after class). Closed immediately.
+// Excuse a student (late arrival / kept after class) and issue a pass they can show.
 export async function POST(request: Request) {
   const session = await verifySession(getTokenFromRequest(request))
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -17,10 +17,13 @@ export async function POST(request: Request) {
     .from('students').select('id, school').eq('id', studentId).single()
   if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 })
 
-  const location = kind === 'late' ? 'Late Arrival (excused)' : 'Kept After Class (excused)'
-  const now = new Date().toISOString()
+  const { data: existing } = await supabaseAdmin
+    .from('checkouts').select('id').eq('student_id', studentId).eq('is_checked_out', true).maybeSingle()
+  if (existing) return NextResponse.json({ error: 'Student already has an active pass' }, { status: 409 })
 
-  const { error } = await supabaseAdmin
+  const location = kind === 'late' ? 'Late Arrival (excused)' : 'Kept After Class (excused)'
+
+  const { data: checkout, error } = await supabaseAdmin
     .from('checkouts')
     .insert({
       student_id: studentId,
@@ -31,12 +34,12 @@ export async function POST(request: Request) {
       pass_type: 'excuse',
       issued_by: originTeacher,
       reason: reason || null,
-      is_checked_out: false,
-      check_out_time: now,
-      check_in_time: now,
-      duration_minutes: 0,
+      is_checked_out: true,
+      check_out_time: new Date().toISOString(),
     })
+    .select('*')
+    .single()
 
-  if (error) return NextResponse.json({ error: 'Failed to log excuse' }, { status: 500 })
-  return NextResponse.json({ success: true })
+  if (error || !checkout) return NextResponse.json({ error: 'Failed to issue excuse pass' }, { status: 500 })
+  return NextResponse.json({ success: true, checkout }, { headers: { 'Cache-Control': 'no-store' } })
 }

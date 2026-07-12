@@ -99,7 +99,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
     const res = await fetch('/api/teacher/excuse', { method: 'POST', headers: authHeaders, body: JSON.stringify({ studentId: exStudentId, kind: exKind, reason: exReason.trim() }) })
     const data = await res.json()
     if (!res.ok) { setExMsg({ text: data.error ?? 'Failed', ok: false }); return }
-    setExMsg({ text: 'Excuse logged', ok: true }); setExStudentId(''); setExReason('')
+    setExMsg({ text: 'Excuse pass issued — the student can show it from “Show My Pass”', ok: true }); setExStudentId(''); setExReason(''); loadBoard(school)
   }
 
   const closePass = async (checkoutId: string, confirmArrival: boolean) => {
@@ -188,7 +188,8 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                           </div>
                           <span className="ml-2 shrink-0 text-sm font-bold tabular-nums text-gray-700">{out}m</span>
                         </div>
-                        {c.pass_type === 'teacher_issued' && <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-purple-500">Teacher pass</p>}
+                        {c.pass_type === 'teacher_issued' && <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-blue-500">Teacher pass</p>}
+                        {c.pass_type === 'excuse' && <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-blue-500">Excuse pass</p>}
                         <div className="mt-3">
                           {c.destination_teacher_id ? (
                             <button onClick={() => closePass(c.id, true)} className="w-full rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Confirm arrival</button>
@@ -268,7 +269,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
               <input value={exReason} onChange={(e) => setExReason(e.target.value)} placeholder="Optional note" className={`mb-4 ${inputCls}`} />
               <button onClick={logExcuse} className="w-full rounded-2xl bg-purple-800 py-3.5 text-base font-bold text-white hover:bg-purple-900">Log Excuse</button>
               {exMsg && <p className={`mt-2 text-sm font-medium ${exMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>{exMsg.text}</p>}
-              <p className="mt-3 text-xs text-gray-500">Excuses are documented in reports and history. They don&apos;t count against bathroom limits.</p>
+              <p className="mt-3 text-xs text-gray-500">Issues a pass the student can show their next teacher (via “Show My Pass”). It appears on the board and in reports, and doesn&apos;t count against bathroom limits.</p>
             </div>
           )}
         </div>
