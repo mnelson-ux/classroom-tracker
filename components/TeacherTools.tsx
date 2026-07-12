@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { nameMatches } from '@/lib/search'
 import { schoolLabel } from '@/lib/schools'
+import CheckoutForm from '@/components/CheckoutForm'
+import GreenScreen from '@/components/GreenScreen'
 import type { Student, Teacher, Checkout } from '@/lib/types'
 
-type View = 'board' | 'issue' | 'excuse'
+type View = 'home' | 'issue' | 'excuse'
 
 function mins(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
@@ -14,11 +16,12 @@ function mins(iso: string) {
 export default function TeacherTools({ token, onLogout }: { token: string; onLogout: () => void }) {
   const [ready, setReady] = useState(false)
   const [me, setMe] = useState<{ isAdmin: boolean; teacherId: string | null; name: string; school: string | null } | null>(null)
-  const [view, setView] = useState<View>('board')
+  const [view, setView] = useState<View>('home')
 
   const [students, setStudents] = useState<Student[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [active, setActive] = useState<Checkout[]>([])
+  const [greenScreen, setGreenScreen] = useState<{ checkout: Checkout; student: Student } | null>(null)
   const [, setTick] = useState(0)
 
   const [search, setSearch] = useState('')
@@ -133,7 +136,7 @@ export default function TeacherTools({ token, onLogout }: { token: string; onLog
           <p className="text-sm text-amber-400">{me?.name}</p>
           <p className="text-xs text-purple-200">{schoolLabel(school)}</p>
         </div>
-        <NavBtn id="board" label="Currently Out" icon="👀" />
+        <NavBtn id="home" label="Check Out & Board" icon="🏠" />
         <NavBtn id="issue" label="Issue Pass" icon="🎫" />
         <NavBtn id="excuse" label="Excuse Student" icon="✏️" />
         <div className="my-3 border-t border-white/15" />
@@ -141,10 +144,24 @@ export default function TeacherTools({ token, onLogout }: { token: string; onLog
         <button onClick={onLogout} className="mt-1 flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-purple-100 transition hover:bg-white/10">🚪 Log Out</button>
       </aside>
 
+      {greenScreen && (
+        <GreenScreen checkout={greenScreen.checkout} student={greenScreen.student}
+          teacher={teachers.find((t) => t.id === greenScreen.checkout.teacher_id)}
+          onCheckedIn={() => { setGreenScreen(null); loadBoard(school) }} />
+      )}
+
       <main className="flex-1 px-4 py-6 md:px-8">
         <div className="mx-auto max-w-4xl">
-          {view === 'board' && (
+          {view === 'home' && (
             <>
+              <h2 className="mb-4 text-2xl font-bold text-gray-900">Check Out a Student</h2>
+              <div className="mb-8 grid gap-6 md:grid-cols-2">
+                <CheckoutForm gender="female" title="Girls" students={students} teachers={teachers}
+                  activeCheckouts={active} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
+                <CheckoutForm gender="male" title="Boys" students={students} teachers={teachers}
+                  activeCheckouts={active} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
+              </div>
+
               <h2 className="mb-4 text-2xl font-bold text-gray-900">Currently Out <span className="text-base font-normal text-gray-400">({active.length})</span></h2>
               {active.length === 0 ? (
                 <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
