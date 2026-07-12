@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { isSchool, schoolLabel } from '@/lib/schools'
-import CheckoutForm from '@/components/CheckoutForm'
+import CheckoutPanel from '@/components/CheckoutPanel'
 import CheckedOutList from '@/components/CheckedOutList'
 import GreenScreen from '@/components/GreenScreen'
 import LoginModal from '@/components/LoginModal'
@@ -99,8 +99,6 @@ export default function SchoolHomePage() {
   }
 
   const pageTitle = settings.page_title ?? `${schoolLabel(school)} Check-In/Out Tracker`
-  const girlsTitle = settings.girls_section_title ?? 'Girls'
-  const boysTitle = settings.boys_section_title ?? 'Boys'
   const teacherForGreenScreen = greenScreen ? teachers.find(t => t.id === greenScreen.checkout.teacher_id) : undefined
 
   if (loading) {
@@ -142,10 +140,8 @@ export default function SchoolHomePage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-6 grid gap-6 md:grid-cols-2">
-          <CheckoutForm gender="female" title={girlsTitle} students={students} teachers={teachers}
-            activeCheckouts={activeCheckouts} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
-          <CheckoutForm gender="male" title={boysTitle} students={students} teachers={teachers}
+        <div className="mx-auto mb-6 max-w-2xl">
+          <CheckoutPanel students={students} teachers={teachers}
             activeCheckouts={activeCheckouts} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
         </div>
 

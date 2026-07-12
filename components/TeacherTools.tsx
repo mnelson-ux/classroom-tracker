@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { nameMatches } from '@/lib/search'
 import { SCHOOLS, schoolLabel } from '@/lib/schools'
-import CheckoutForm from '@/components/CheckoutForm'
+import CheckoutPanel from '@/components/CheckoutPanel'
 import GreenScreen from '@/components/GreenScreen'
 import type { Student, Teacher, Checkout } from '@/lib/types'
 
@@ -162,10 +162,8 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
           {view === 'home' && (
             <>
               <h2 className="mb-4 text-2xl font-bold text-gray-900">Check Out a Student</h2>
-              <div className="mb-8 grid gap-6 md:grid-cols-2">
-                <CheckoutForm gender="female" title="Girls" students={students} teachers={teachers}
-                  activeCheckouts={active} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
-                <CheckoutForm gender="male" title="Boys" students={students} teachers={teachers}
+              <div className="mb-8 max-w-2xl">
+                <CheckoutPanel students={students} teachers={teachers}
                   activeCheckouts={active} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
               </div>
 
