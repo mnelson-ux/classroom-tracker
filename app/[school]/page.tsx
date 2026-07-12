@@ -142,17 +142,17 @@ export default function SchoolHomePage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <button onClick={() => setShowMyPass(true)}
-          className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-purple-200 bg-white py-4 text-base font-bold text-purple-800 shadow-sm transition hover:bg-purple-50">
-          🎫 Already have a pass? Tap to show it
-        </button>
-
-        <div className="mb-8 grid gap-6 md:grid-cols-2">
+        <div className="mb-6 grid gap-6 md:grid-cols-2">
           <CheckoutForm gender="female" title={girlsTitle} students={students} teachers={teachers}
             activeCheckouts={activeCheckouts} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
           <CheckoutForm gender="male" title={boysTitle} students={students} teachers={teachers}
             activeCheckouts={activeCheckouts} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
         </div>
+
+        <button onClick={() => setShowMyPass(true)}
+          className="mb-8 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-purple-200 bg-white py-4 text-base font-bold text-purple-800 shadow-sm transition hover:bg-purple-50">
+          🎫 Already have a pass? Tap to show it
+        </button>
 
         {auth?.isAuthenticated && (auth.userType === 'teacher' || auth.userType === 'admin') && (
           <div className="rounded-2xl bg-white p-6 shadow-sm">
