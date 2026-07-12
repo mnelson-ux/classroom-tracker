@@ -62,13 +62,15 @@ export default function CheckoutForm({ gender, title, students, teachers, active
   }
 
   const isGirls = gender === 'female'
-  const accentColor = isGirls ? 'text-purple-800' : 'text-amber-600'
-  const topBorder = isGirls ? 'border-t-4 border-t-purple-800' : 'border-t-4 border-t-amber-500'
+  const bandBg = isGirls ? 'bg-purple-800' : 'bg-amber-500'
 
   return (
-    <div className={`rounded-2xl bg-white shadow-sm ${topBorder}`}>
-      <div className="p-6">
-        <h2 className={`mb-5 text-2xl font-bold ${accentColor}`}>{title}</h2>
+    <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-100">
+      <div className={`flex items-center gap-3 px-7 py-4 ${bandBg}`}>
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/25 text-xl font-bold text-white">{isGirls ? '♀' : '♂'}</span>
+        <h2 className="text-xl font-bold text-white">{title}</h2>
+      </div>
+      <div className="p-7">
 
         <div className="relative mb-3">
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Student</label>
@@ -142,7 +144,7 @@ export default function CheckoutForm({ gender, title, students, teachers, active
         </div>
 
         <button onClick={handleCheckout}
-          className="w-full rounded-xl bg-purple-800 py-3.5 text-sm font-bold text-white transition hover:bg-purple-900 active:scale-[0.98]">
+          className="w-full rounded-2xl bg-purple-800 py-4 text-base font-bold text-white shadow-sm transition hover:bg-purple-900 active:scale-[0.98]">
           Check Out
         </button>
 
