@@ -118,12 +118,12 @@ export default function SchoolHomePage() {
           teacher={teacherForGreenScreen} onCheckedIn={() => setGreenScreen(null)} />
       )}
 
-      {/* Header — school purple with gold accent */}
-      <header className="sticky top-0 z-10 bg-purple-800 shadow-lg">
+      {/* Header — frosted purple→indigo gradient with gold accent */}
+      <header className="sticky top-0 z-10 bg-gradient-to-r from-purple-800/90 to-indigo-800/90 shadow-lg backdrop-blur-lg">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
             <h1 className="text-xl font-bold text-white">{pageTitle}</h1>
-            <p className="text-sm font-semibold text-amber-400">{schoolLabel(school)} · {clock}</p>
+            <p className="text-sm font-semibold text-amber-300">{schoolLabel(school)} · {clock}</p>
           </div>
           {auth?.isAuthenticated ? (
             <div className="flex items-center gap-3">
@@ -138,7 +138,7 @@ export default function SchoolHomePage() {
             <button onClick={() => setShowLogin(true)} className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition">Staff Login</button>
           )}
         </div>
-        <div className="h-1 w-full bg-amber-400" />
+        <div className="h-1 w-full bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300" />
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">

@@ -62,10 +62,10 @@ export default function CheckoutForm({ gender, title, students, teachers, active
   }
 
   const isGirls = gender === 'female'
-  const bandBg = isGirls ? 'bg-purple-800' : 'bg-amber-500'
+  const bandBg = isGirls ? 'bg-gradient-to-r from-purple-800 to-violet-600' : 'bg-gradient-to-r from-amber-500 to-orange-400'
 
   return (
-    <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-100">
+    <div className="overflow-hidden rounded-3xl bg-white/80 shadow-sm ring-1 ring-gray-200/70 backdrop-blur-sm">
       <div className={`flex items-center gap-3 px-7 py-4 ${bandBg}`}>
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/25 text-xl font-bold text-white">{isGirls ? '♀' : '♂'}</span>
         <h2 className="text-xl font-bold text-white">{title}</h2>

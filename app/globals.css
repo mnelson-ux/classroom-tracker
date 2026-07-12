@@ -3,11 +3,16 @@
 @tailwind utilities;
 
 html, body {
-  height: 100%;
+  min-height: 100%;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
-  background-color: #f5f5f7;
   color: #1d1d1f;
+  /* Soft, airy mesh-gradient wash — subtle purple + gold, mostly light */
+  background:
+    radial-gradient(1100px 550px at 100% -5%, rgba(216, 180, 254, 0.30), transparent 60%),
+    radial-gradient(900px 500px at -5% 105%, rgba(253, 230, 138, 0.30), transparent 55%),
+    #fbfaff;
+  background-attachment: fixed;
 }
 
 select option {

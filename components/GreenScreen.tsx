@@ -49,13 +49,15 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
   const globe = useRotatingGlobe()
   const today = formatDate(new Date())
 
-  // Background color depends on where the student went.
+  // Teacher-issued passes are always blue; otherwise color by destination.
   const bgByLocation: Record<string, string> = {
     Bathroom: 'bg-yellow-500',
     Office: 'bg-emerald-500',
     Nurse: 'bg-red-500',
   }
-  const bgColor = bgByLocation[checkout.location] ?? 'bg-emerald-500'
+  const bgColor = checkout.pass_type === 'teacher_issued'
+    ? 'bg-blue-600'
+    : bgByLocation[checkout.location] ?? 'bg-emerald-500'
 
   const handleCheckin = async (pin: string): Promise<string | null> => {
     const res = await fetch('/api/checkin', {

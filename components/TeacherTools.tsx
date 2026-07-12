@@ -129,8 +129,8 @@ export default function TeacherTools({ token, onLogout }: { token: string; onLog
   )
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 md:flex-row">
-      <aside className="flex flex-col gap-1 bg-purple-800 p-4 md:min-h-screen md:w-64">
+    <div className="flex min-h-screen flex-col md:flex-row">
+      <aside className="flex flex-col gap-1 bg-gradient-to-b from-purple-800 to-indigo-900 p-4 md:min-h-screen md:w-64">
         <div className="mb-4 border-b border-white/15 pb-4">
           <h1 className="text-lg font-bold text-white">Teacher Tools</h1>
           <p className="text-sm text-amber-400">{me?.name}</p>
