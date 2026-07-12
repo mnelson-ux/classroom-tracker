@@ -45,6 +45,11 @@ export interface Checkout {
   check_in_time: string | null
   duration_minutes: number | null
   is_checked_out: boolean
+  pass_type: 'student' | 'teacher_issued' | 'excuse'
+  issued_by: string | null
+  destination_teacher_id: string | null
+  reason: string | null
+  arrival_confirmed: boolean
   created_at: string
   student?: Student
   teacher?: Teacher

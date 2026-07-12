@@ -98,6 +98,7 @@ export async function POST(request: Request) {
       .eq('student_id', studentId)
       .eq('location', 'Bathroom')
       .eq('is_checked_out', false)
+      .eq('pass_type', 'student') // teacher-issued/excused passes don't count toward the limit
       .gte('check_out_time', todayStart.toISOString())
 
     const totalMinutes = todayRecords?.reduce((sum, r) => sum + (r.duration_minutes ?? 0), 0) ?? 0

@@ -120,6 +120,9 @@ export default function SchoolHomePage() {
           {auth?.isAuthenticated ? (
             <div className="flex items-center gap-3">
               <span className="hidden text-sm text-purple-200 sm:block">{auth.userName}</span>
+              {auth.userType === 'teacher' && (
+                <a href="/teacher" className="rounded-full bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30 transition">Teacher Tools</a>
+              )}
               <a href={`/reports?school=${school}`} className="rounded-full bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30 transition">Reports</a>
               {auth.userType === 'admin' && (
                 <a href="/admin" className="rounded-full bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30 transition">Admin Panel</a>
