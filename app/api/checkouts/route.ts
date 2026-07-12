@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     .select(`
       *,
       student:students(id, name, gender),
-      teacher:teachers(id, name),
+      teacher:teachers!checkouts_teacher_id_fkey(id, name),
       room:rooms(id, name)
     `)
     .eq('is_checked_out', true)

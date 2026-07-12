@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   const school = new URL(request.url).searchParams.get('school')
   let cq = supabaseAdmin
     .from('checkouts')
-    .select('teacher_id, location, check_out_time, duration_minutes, teacher:teachers(id, name), student:students(id, name, gender)')
+    .select('teacher_id, location, check_out_time, duration_minutes, teacher:teachers!checkouts_teacher_id_fkey(id, name), student:students(id, name, gender)')
     .order('check_out_time', { ascending: false })
   if (school) cq = cq.eq('school', school)
 
