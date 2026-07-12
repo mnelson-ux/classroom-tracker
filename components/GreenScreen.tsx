@@ -54,6 +54,7 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
     Bathroom: 'bg-yellow-500',
     Office: 'bg-emerald-500',
     Nurse: 'bg-red-500',
+    Counselor: 'bg-teal-500',
   }
   const staffIssued = checkout.pass_type === 'teacher_issued' || checkout.pass_type === 'excuse'
   const bgColor = staffIssued

@@ -16,6 +16,7 @@ const LOCATIONS = [
   { name: 'Bathroom', icon: '🚻' },
   { name: 'Office', icon: '🏢' },
   { name: 'Nurse', icon: '🩺' },
+  { name: 'Counselor', icon: '💬' },
 ]
 
 const inputCls =
@@ -106,7 +107,7 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
 
         {/* Location tiles */}
         <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-600">Where are you going?</label>
-        <div className="mb-6 grid grid-cols-3 gap-3">
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {LOCATIONS.map((l) => {
             const on = location === l.name
             return (

@@ -235,7 +235,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
 
               <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-gray-600">Destination</label>
               <div className="mb-2 flex flex-wrap gap-2">
-                {['Bathroom', 'Office', 'Nurse'].map((l) => (
+                {['Bathroom', 'Office', 'Nurse', 'Counselor'].map((l) => (
                   <button key={l} onClick={() => setDest({ mode: 'location', location: l })}
                     className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${dest.mode === 'location' && dest.location === l ? 'bg-purple-800 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>{l}</button>
                 ))}
