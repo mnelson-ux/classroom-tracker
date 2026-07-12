@@ -6,10 +6,11 @@ import TeacherManager from '@/components/admin/TeacherManager'
 import RoomManager from '@/components/admin/RoomManager'
 import SettingsManager from '@/components/admin/SettingsManager'
 import HistoryView from '@/components/admin/HistoryView'
+import FeedbackManager from '@/components/admin/FeedbackManager'
 import { SCHOOLS } from '@/lib/schools'
 import type { AuthState, Student, Teacher, Room } from '@/lib/types'
 
-type Tab = 'students' | 'teachers' | 'rooms' | 'settings' | 'history'
+type Tab = 'students' | 'teachers' | 'rooms' | 'settings' | 'history' | 'requests'
 
 export default function AdminPage() {
   const [auth, setAuth] = useState<AuthState | null>(null)
@@ -111,6 +112,7 @@ export default function AdminPage() {
     { id: 'rooms', label: 'Rooms' },
     { id: 'settings', label: 'Settings' },
     { id: 'history', label: 'History' },
+    { id: 'requests', label: 'Requests' },
   ]
 
   return (
@@ -180,6 +182,9 @@ export default function AdminPage() {
         )}
         {tab === 'history' && (
           <HistoryView token={auth.token!} students={students} school={school} />
+        )}
+        {tab === 'requests' && (
+          <FeedbackManager token={auth.token!} />
         )}
       </div>
     </div>

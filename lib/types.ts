@@ -61,6 +61,17 @@ export interface Settings {
   [key: string]: string
 }
 
+export interface Feedback {
+  id: string
+  type: 'issue' | 'request'
+  message: string
+  submitted_by: string | null
+  teacher_id: string | null
+  school: string | null
+  status: 'open' | 'resolved'
+  created_at: string
+}
+
 export interface Session {
   id: string
   token: string

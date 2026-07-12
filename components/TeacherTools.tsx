@@ -7,7 +7,7 @@ import CheckoutPanel from '@/components/CheckoutPanel'
 import GreenScreen from '@/components/GreenScreen'
 import type { Student, Teacher, Checkout } from '@/lib/types'
 
-type View = 'home' | 'issue' | 'excuse'
+type View = 'home' | 'issue' | 'excuse' | 'feedback'
 
 function mins(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
@@ -34,6 +34,10 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [exKind, setExKind] = useState<'late' | 'kept'>('late')
   const [exReason, setExReason] = useState('')
   const [exMsg, setExMsg] = useState<{ text: string; ok: boolean } | null>(null)
+
+  const [fbType, setFbType] = useState<'issue' | 'request'>('issue')
+  const [fbMessage, setFbMessage] = useState('')
+  const [fbMsg, setFbMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
   // Teachers are pinned to their own school; admins pick which school they're managing.
   const school = me ? (me.isAdmin ? adminSchool : (me.school ?? '')) : ''
@@ -107,6 +111,14 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
     loadBoard(school)
   }
 
+  const submitFeedback = async () => {
+    if (!fbMessage.trim()) { setFbMsg({ text: 'Please enter a message', ok: false }); return }
+    const res = await fetch('/api/teacher/feedback', { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: fbType, message: fbMessage }) })
+    const data = await res.json()
+    if (!res.ok) { setFbMsg({ text: data.error ?? 'Failed to send', ok: false }); return }
+    setFbMsg({ text: 'Sent to admin — thank you!', ok: true }); setFbMessage('')
+  }
+
   if (!ready) {
     return <div className="flex min-h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-purple-800" /></div>
   }
@@ -143,6 +155,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
         <NavBtn id="home" label="Check Out & Board" icon="🏠" />
         <NavBtn id="issue" label="Issue Pass" icon="🎫" />
         <NavBtn id="excuse" label="Excuse Student" icon="✏️" />
+        <NavBtn id="feedback" label="Report / Request" icon="📮" />
         <div className="my-3 border-t border-white/15" />
         <a href={`/reports?school=${school}`} className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-purple-100 transition hover:bg-white/10">📊 Reports</a>
         {isAdmin && (
@@ -270,6 +283,22 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
               <button onClick={logExcuse} className="w-full rounded-2xl bg-purple-800 py-3.5 text-base font-bold text-white hover:bg-purple-900">Log Excuse</button>
               {exMsg && <p className={`mt-2 text-sm font-medium ${exMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>{exMsg.text}</p>}
               <p className="mt-3 text-xs text-gray-500">Issues a pass the student can show their next teacher (via “Show My Pass”). It appears on the board and in reports, and doesn&apos;t count against bathroom limits.</p>
+            </div>
+          )}
+
+          {view === 'feedback' && (
+            <div className="max-w-xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-1 text-2xl font-bold text-gray-900">Report an Issue / Request a Change</h2>
+              <p className="mb-5 text-sm text-gray-500">Your message goes straight to the admin&apos;s Requests panel.</p>
+              <div className="mb-4 flex gap-2">
+                <button onClick={() => setFbType('issue')} className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${fbType === 'issue' ? 'bg-purple-800 text-white' : 'border border-gray-300 text-gray-700'}`}>⚠ Report an issue</button>
+                <button onClick={() => setFbType('request')} className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${fbType === 'request' ? 'bg-purple-800 text-white' : 'border border-gray-300 text-gray-700'}`}>💡 Request a change</button>
+              </div>
+              <textarea value={fbMessage} onChange={(e) => setFbMessage(e.target.value)} rows={5}
+                placeholder="Describe the issue or the change you'd like…"
+                className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:border-purple-700 focus:outline-none" />
+              <button onClick={submitFeedback} className="mt-4 w-full rounded-2xl bg-purple-800 py-3.5 text-base font-bold text-white hover:bg-purple-900">Send to Admin</button>
+              {fbMsg && <p className={`mt-2 text-sm font-medium ${fbMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>{fbMsg.text}</p>}
             </div>
           )}
         </div>
