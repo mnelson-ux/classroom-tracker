@@ -149,7 +149,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="flex items-center gap-2 overflow-x-auto border-b border-purple-200/60 bg-gradient-to-b from-purple-100/70 to-purple-50/50 p-3 backdrop-blur-xl md:min-h-screen md:w-64 md:flex-col md:items-stretch md:gap-1 md:overflow-visible md:border-b-0 md:border-r md:p-4">
+      <aside className="flex items-center gap-2 overflow-x-auto border-b border-purple-200/60 bg-gradient-to-b from-purple-100/70 to-purple-50/50 p-3 backdrop-blur-xl md:sticky md:top-0 md:h-screen md:w-64 md:flex-col md:items-stretch md:gap-1 md:self-start md:overflow-x-visible md:overflow-y-auto md:border-b-0 md:border-r md:p-4">
         {/* Brand — hidden on mobile to keep the bar compact */}
         <div className="mb-6 hidden shrink-0 items-center gap-3 px-1 pt-1 md:flex">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-700">{icons.grad}</span>
