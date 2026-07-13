@@ -141,17 +141,17 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
 
   const NavBtn = ({ id, label, icon }: { id: View; label: string; icon: React.ReactNode }) => (
     <button onClick={() => setView(id)}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'}`}>
+      className={`flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'}`}>
       {icon} {label}
     </button>
   )
-  const linkCls = 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-white/70 hover:text-gray-900'
+  const linkCls = 'flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-white/70 hover:text-gray-900'
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="flex flex-col gap-1 border-r border-purple-200/60 bg-gradient-to-b from-purple-100/70 to-purple-50/50 p-4 backdrop-blur-xl md:min-h-screen md:w-64">
-        {/* Brand */}
-        <div className="mb-6 flex items-center gap-3 px-1 pt-1">
+      <aside className="flex items-center gap-2 overflow-x-auto border-b border-purple-200/60 bg-gradient-to-b from-purple-100/70 to-purple-50/50 p-3 backdrop-blur-xl md:min-h-screen md:w-64 md:flex-col md:items-stretch md:gap-1 md:overflow-visible md:border-b-0 md:border-r md:p-4">
+        {/* Brand — hidden on mobile to keep the bar compact */}
+        <div className="mb-6 hidden shrink-0 items-center gap-3 px-1 pt-1 md:flex">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-700">{icons.grad}</span>
           <div className="min-w-0">
             <h1 className="truncate font-serif text-lg font-semibold leading-tight text-gray-900">{isAdmin ? 'Staff Tools' : 'Teacher Tools'}</h1>
@@ -160,29 +160,29 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
         </div>
 
         {isAdmin && (
-          <div className="mb-4 flex gap-1 rounded-lg bg-white/60 p-1">
+          <div className="flex shrink-0 gap-1 rounded-lg bg-white/60 p-1 md:mb-4">
             {SCHOOLS.map((s) => (
               <button key={s.id} onClick={() => setAdminSchool(s.id)}
-                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition ${adminSchool === s.id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
+                className={`flex-1 whitespace-nowrap rounded-md px-2 py-1.5 text-xs font-semibold transition ${adminSchool === s.id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
                 {s.label}
               </button>
             ))}
           </div>
         )}
 
-        <nav className="flex flex-col gap-1">
+        <nav className="contents md:flex md:flex-col md:gap-1">
           <NavBtn id="home" label="Check Out & Board" icon={icons.board} />
           <NavBtn id="issue" label="Issue Pass" icon={icons.ticket} />
           <NavBtn id="excuse" label="Excuse Student" icon={icons.edit} />
           <NavBtn id="feedback" label="Report / Request" icon={icons.message} />
-          <div className="my-3 h-px bg-gray-200" />
+          <div className="hidden h-px bg-gray-200 md:my-3 md:block" />
           <a href={`/reports?school=${school}`} className={linkCls}>{icons.chart} Reports</a>
           {isAdmin && (
             <a href="/admin" className={linkCls}>{icons.settings} Admin Panel</a>
           )}
         </nav>
 
-        <button onClick={onLogout} className={`mt-auto ${linkCls}`}>{icons.logout} Log Out</button>
+        <button onClick={onLogout} className={`${linkCls} md:mt-auto`}>{icons.logout} Log Out</button>
       </aside>
 
       <main className="flex-1 px-4 py-6 md:px-8">
