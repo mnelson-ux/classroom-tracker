@@ -15,6 +15,12 @@ html, body {
   background-attachment: fixed;
 }
 
+/* Editorial serif headings (the display font), matching the elegant admin look */
+h1, h2 {
+  font-family: var(--font-serif), Georgia, Cambria, 'Times New Roman', serif;
+  letter-spacing: -0.01em;
+}
+
 select option {
   background-color: #ffffff;
   color: #1d1d1f;
