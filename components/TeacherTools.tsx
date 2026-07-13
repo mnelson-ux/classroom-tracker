@@ -141,7 +141,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
 
   const NavBtn = ({ id, label, icon }: { id: View; label: string; icon: React.ReactNode }) => (
     <button onClick={() => setView(id)}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-purple-100 text-purple-800' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'}`}>
+      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'}`}>
       {icon} {label}
     </button>
   )
@@ -149,7 +149,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="flex flex-col gap-1 border-r border-gray-300/70 bg-gray-200/70 p-4 backdrop-blur-xl md:min-h-screen md:w-64">
+      <aside className="flex flex-col gap-1 border-r border-purple-200/60 bg-gradient-to-b from-purple-100/70 to-purple-50/50 p-4 backdrop-blur-xl md:min-h-screen md:w-64">
         {/* Brand */}
         <div className="mb-6 flex items-center gap-3 px-1 pt-1">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-700">{icons.grad}</span>
