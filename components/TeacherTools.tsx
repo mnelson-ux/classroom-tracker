@@ -127,39 +127,48 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
 
   const NavBtn = ({ id, label, icon }: { id: View; label: string; icon: string }) => (
     <button onClick={() => setView(id)}
-      className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-semibold transition ${view === id ? 'bg-white/20 text-white' : 'text-purple-100 hover:bg-white/10'}`}>
-      <span className="text-base">{icon}</span> {label}
+      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
+      <span className="w-5 text-center text-base">{icon}</span> {label}
     </button>
   )
+  const linkCls = 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-zinc-400 transition hover:bg-white/5 hover:text-white'
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="flex flex-col gap-1 bg-gradient-to-b from-purple-800 to-indigo-900 p-4 md:min-h-screen md:w-64">
-        <div className="mb-4 border-b border-white/15 pb-4">
-          <h1 className="text-lg font-bold text-white">{isAdmin ? 'Staff Tools' : 'Teacher Tools'}</h1>
-          <p className="text-sm text-amber-400">{me?.name}</p>
-          <p className="text-xs text-purple-200">{schoolLabel(school)}</p>
+      <aside className="flex flex-col gap-1 border-r border-white/5 bg-zinc-900 p-4 md:min-h-screen md:w-64">
+        {/* Brand */}
+        <div className="mb-6 flex items-center gap-3 px-1 pt-1">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/15 text-lg text-amber-300 ring-1 ring-amber-400/20">🎫</span>
+          <div className="min-w-0">
+            <h1 className="truncate font-serif text-lg font-semibold leading-tight text-white">{isAdmin ? 'Staff Tools' : 'Teacher Tools'}</h1>
+            <p className="truncate text-xs text-zinc-500">{me?.name} · {schoolLabel(school)}</p>
+          </div>
         </div>
+
         {isAdmin && (
-          <div className="mb-3 flex gap-1 rounded-lg bg-white/10 p-1">
+          <div className="mb-4 flex gap-1 rounded-lg bg-white/5 p-1">
             {SCHOOLS.map((s) => (
               <button key={s.id} onClick={() => setAdminSchool(s.id)}
-                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition ${adminSchool === s.id ? 'bg-white text-purple-800' : 'text-purple-100 hover:bg-white/10'}`}>
+                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition ${adminSchool === s.id ? 'bg-white/15 text-white' : 'text-zinc-400 hover:text-white'}`}>
                 {s.label}
               </button>
             ))}
           </div>
         )}
-        <NavBtn id="home" label="Check Out & Board" icon="🏠" />
-        <NavBtn id="issue" label="Issue Pass" icon="🎫" />
-        <NavBtn id="excuse" label="Excuse Student" icon="✏️" />
-        <NavBtn id="feedback" label="Report / Request" icon="📮" />
-        <div className="my-3 border-t border-white/15" />
-        <a href={`/reports?school=${school}`} className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-purple-100 transition hover:bg-white/10">📊 Reports</a>
-        {isAdmin && (
-          <a href="/admin" className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-purple-100 transition hover:bg-white/10">🛠️ Admin Panel</a>
-        )}
-        <button onClick={onLogout} className="mt-1 flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-purple-100 transition hover:bg-white/10">🚪 Log Out</button>
+
+        <nav className="flex flex-col gap-1">
+          <NavBtn id="home" label="Check Out & Board" icon="🏠" />
+          <NavBtn id="issue" label="Issue Pass" icon="🎫" />
+          <NavBtn id="excuse" label="Excuse Student" icon="✏️" />
+          <NavBtn id="feedback" label="Report / Request" icon="📮" />
+          <div className="my-3 h-px bg-white/10" />
+          <a href={`/reports?school=${school}`} className={linkCls}><span className="w-5 text-center text-base">📊</span> Reports</a>
+          {isAdmin && (
+            <a href="/admin" className={linkCls}><span className="w-5 text-center text-base">🛠️</span> Admin Panel</a>
+          )}
+        </nav>
+
+        <button onClick={onLogout} className={`mt-auto ${linkCls}`}><span className="w-5 text-center text-base">🚪</span> Log Out</button>
       </aside>
 
       <main className="flex-1 px-4 py-6 md:px-8">
