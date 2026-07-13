@@ -12,6 +12,20 @@ function mins(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
 }
 
+const svg = (children: React.ReactNode) => (
+  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+)
+const icons = {
+  grad: svg(<><path d="M22 10 12 5 2 10l10 5 10-5Z" /><path d="M6 12v5c3 2.5 9 2.5 12 0v-5" /></>),
+  board: svg(<><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></>),
+  ticket: svg(<><path d="M2 9a3 3 0 0 0 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 0 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" /><path d="M13 5v14" /></>),
+  edit: svg(<><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></>),
+  message: svg(<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />),
+  chart: svg(<><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></>),
+  settings: svg(<><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></>),
+  logout: svg(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></>),
+}
+
 export default function TeacherTools({ token, onLogout, initialSchool }: { token: string; onLogout: () => void; initialSchool?: string }) {
   const [ready, setReady] = useState(false)
   const [me, setMe] = useState<{ isAdmin: boolean; teacherId: string | null; name: string; school: string | null } | null>(null)
@@ -125,31 +139,31 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const selName = students.find((s) => s.id === studentId)?.name
   const inputCls = 'w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 focus:border-purple-700 focus:outline-none'
 
-  const NavBtn = ({ id, label, icon }: { id: View; label: string; icon: string }) => (
+  const NavBtn = ({ id, label, icon }: { id: View; label: string; icon: React.ReactNode }) => (
     <button onClick={() => setView(id)}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
-      <span className="w-5 text-center text-base">{icon}</span> {label}
+      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-purple-100 text-purple-800' : 'text-gray-600 hover:bg-gray-200/60 hover:text-gray-900'}`}>
+      {icon} {label}
     </button>
   )
-  const linkCls = 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-zinc-400 transition hover:bg-white/5 hover:text-white'
+  const linkCls = 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-200/60 hover:text-gray-900'
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="flex flex-col gap-1 border-r border-white/5 bg-zinc-900 p-4 md:min-h-screen md:w-64">
+      <aside className="flex flex-col gap-1 border-r border-gray-200 bg-gray-50/80 p-4 backdrop-blur-xl md:min-h-screen md:w-64">
         {/* Brand */}
         <div className="mb-6 flex items-center gap-3 px-1 pt-1">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/15 text-lg text-amber-300 ring-1 ring-amber-400/20">🎫</span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-700">{icons.grad}</span>
           <div className="min-w-0">
-            <h1 className="truncate font-serif text-lg font-semibold leading-tight text-white">{isAdmin ? 'Staff Tools' : 'Teacher Tools'}</h1>
-            <p className="truncate text-xs text-zinc-500">{me?.name} · {schoolLabel(school)}</p>
+            <h1 className="truncate font-serif text-lg font-semibold leading-tight text-gray-900">{isAdmin ? 'Staff Tools' : 'Teacher Tools'}</h1>
+            <p className="truncate text-xs text-gray-500">{me?.name} · {schoolLabel(school)}</p>
           </div>
         </div>
 
         {isAdmin && (
-          <div className="mb-4 flex gap-1 rounded-lg bg-white/5 p-1">
+          <div className="mb-4 flex gap-1 rounded-lg bg-gray-200/60 p-1">
             {SCHOOLS.map((s) => (
               <button key={s.id} onClick={() => setAdminSchool(s.id)}
-                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition ${adminSchool === s.id ? 'bg-white/15 text-white' : 'text-zinc-400 hover:text-white'}`}>
+                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition ${adminSchool === s.id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
                 {s.label}
               </button>
             ))}
@@ -157,18 +171,18 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
         )}
 
         <nav className="flex flex-col gap-1">
-          <NavBtn id="home" label="Check Out & Board" icon="🏠" />
-          <NavBtn id="issue" label="Issue Pass" icon="🎫" />
-          <NavBtn id="excuse" label="Excuse Student" icon="✏️" />
-          <NavBtn id="feedback" label="Report / Request" icon="📮" />
-          <div className="my-3 h-px bg-white/10" />
-          <a href={`/reports?school=${school}`} className={linkCls}><span className="w-5 text-center text-base">📊</span> Reports</a>
+          <NavBtn id="home" label="Check Out & Board" icon={icons.board} />
+          <NavBtn id="issue" label="Issue Pass" icon={icons.ticket} />
+          <NavBtn id="excuse" label="Excuse Student" icon={icons.edit} />
+          <NavBtn id="feedback" label="Report / Request" icon={icons.message} />
+          <div className="my-3 h-px bg-gray-200" />
+          <a href={`/reports?school=${school}`} className={linkCls}>{icons.chart} Reports</a>
           {isAdmin && (
-            <a href="/admin" className={linkCls}><span className="w-5 text-center text-base">🛠️</span> Admin Panel</a>
+            <a href="/admin" className={linkCls}>{icons.settings} Admin Panel</a>
           )}
         </nav>
 
-        <button onClick={onLogout} className={`mt-auto ${linkCls}`}><span className="w-5 text-center text-base">🚪</span> Log Out</button>
+        <button onClick={onLogout} className={`mt-auto ${linkCls}`}>{icons.logout} Log Out</button>
       </aside>
 
       <main className="flex-1 px-4 py-6 md:px-8">
