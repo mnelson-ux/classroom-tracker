@@ -70,6 +70,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   useEffect(() => {
     ;(async () => {
       const r = await fetch('/api/teacher/me', { headers: authHeaders, cache: 'no-store' })
+      if (r.status === 401) { onLogout(); return } // session expired — sign out cleanly
       if (!r.ok) { setReady(true); return }
       setMe(await r.json())
       setReady(true)

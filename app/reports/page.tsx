@@ -60,8 +60,12 @@ export default function ReportsPage() {
     if (!auth?.token) return
     setLoading(true)
     fetch(`/api/reports?school=${school}&ts=${Date.now()}`, { headers: { Authorization: `Bearer ${auth.token}` }, cache: 'no-store' })
-      .then((r) => r.json())
+      .then((r) => {
+        if (r.status === 401) { localStorage.removeItem('auth'); window.location.href = '/'; return null }
+        return r.json()
+      })
       .then((d) => {
+        if (!d) return
         if (Array.isArray(d.teachers)) setTeachers(d.teachers)
         if (Array.isArray(d.students)) setRoster(d.students)
         if (Array.isArray(d.locations)) setLocations(d.locations)

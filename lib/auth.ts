@@ -5,7 +5,7 @@ export async function createSession(
   userType: 'admin' | 'teacher',
   userId: string
 ): Promise<string | null> {
-  const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString() // 8 hours
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
 
   const { data, error } = await supabaseAdmin
     .from('sessions')

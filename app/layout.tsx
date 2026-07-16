@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Fraunces } from 'next/font/google'
+import VersionChecker from '@/components/VersionChecker'
 import './globals.css'
 
 const fraunces = Fraunces({
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${fraunces.variable} min-h-screen text-gray-900 antialiased`}>
+        <VersionChecker />
         {children}
       </body>
     </html>
