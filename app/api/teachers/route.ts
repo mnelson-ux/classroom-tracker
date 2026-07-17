@@ -12,6 +12,7 @@ export async function GET(request: Request) {
     .from('teachers')
     .select('id, name, room_id, school, rooms(name)')
     .eq('active', true)
+    .eq('is_support', false) // support staff aren't selectable as a teacher
     .order('name')
   if (school) query = query.eq('school', school)
 

@@ -12,7 +12,7 @@ interface Props {
   onRefresh: () => void
 }
 
-const emptyForm = { name: '', username: '', password: '', room_id: '', has_private_bathroom: false }
+const emptyForm = { name: '', username: '', password: '', room_id: '', has_private_bathroom: false, is_support: false }
 
 export default function TeacherManager({ teachers, rooms, token, school, onRefresh }: Props) {
   const [form, setForm] = useState(emptyForm)
@@ -68,6 +68,11 @@ export default function TeacherManager({ teachers, rooms, token, school, onRefre
     onRefresh()
   }
 
+  const handleSupportToggle = async (id: string, current: boolean) => {
+    await fetch(`/api/admin/teachers/${id}`, { method: 'PUT', headers, body: JSON.stringify({ is_support: !current }) })
+    onRefresh()
+  }
+
   const otherSchool = school === 'hs' ? 'ms' : 'hs'
   const handleMove = async (id: string, name: string) => {
     if (!confirm(`Move ${name} to ${schoolLabel(otherSchool)}?`)) return
@@ -98,6 +103,12 @@ export default function TeacherManager({ teachers, rooms, token, school, onRefre
             onChange={(e) => setForm({ ...form, has_private_bathroom: e.target.checked })}
             className="h-4 w-4 rounded border-gray-300 text-purple-800 focus:ring-purple-700" />
           🚻 Private bathroom (not shared — manages its own capacity)
+        </label>
+        <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={form.is_support}
+            onChange={(e) => setForm({ ...form, is_support: e.target.checked })}
+            className="h-4 w-4 rounded border-gray-300 text-purple-800 focus:ring-purple-700" />
+          🎧 Support staff (can log in &amp; use tools, but not selectable as a teacher)
         </label>
         {error && <p className="mt-2 text-sm font-medium text-red-500">{error}</p>}
       </div>
@@ -136,6 +147,9 @@ export default function TeacherManager({ teachers, rooms, token, school, onRefre
                   <>
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {t.name}
+                      {t.is_support && (
+                        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700" title="Support staff — not a classroom teacher">🎧 Support</span>
+                      )}
                       {t.has_private_bathroom && (
                         <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700" title="Private, non-shared bathroom">🚻 Private</span>
                       )}
@@ -156,6 +170,10 @@ export default function TeacherManager({ teachers, rooms, token, school, onRefre
                         <button onClick={() => handlePrivateToggle(t.id, t.has_private_bathroom)}
                           className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${t.has_private_bathroom ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                           {t.has_private_bathroom ? 'Private ✓' : 'Private bathroom'}
+                        </button>
+                        <button onClick={() => handleSupportToggle(t.id, t.is_support)}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${t.is_support ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                          {t.is_support ? 'Support ✓' : 'Support staff'}
                         </button>
                         <button onClick={() => handleMove(t.id, t.name)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-50">→ {schoolLabel(otherSchool)}</button>
                         <button onClick={() => handleDelete(t.id, t.name)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50">Delete</button>

@@ -21,6 +21,7 @@ export interface Teacher {
   active: boolean
   school: string
   has_private_bathroom: boolean
+  is_support: boolean
   created_at: string
   room?: Room
 }

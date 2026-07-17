@@ -16,6 +16,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   if (body.school) update.school = body.school
   if (typeof body.active === 'boolean') update.active = body.active
   if (typeof body.has_private_bathroom === 'boolean') update.has_private_bathroom = body.has_private_bathroom
+  if (typeof body.is_support === 'boolean') update.is_support = body.is_support
   if (body.password) update.password_hash = await bcrypt.hash(body.password, 10)
   if ('room_id' in body) update.room_id = body.room_id || null
 
