@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 // Never cache or pre-render this route — always query the database live.
 export const dynamic = 'force-dynamic'

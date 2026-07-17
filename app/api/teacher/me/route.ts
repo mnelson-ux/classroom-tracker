@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifySession, getTokenFromRequest } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'

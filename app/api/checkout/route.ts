@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function POST(request: Request) {
   const { studentId, teacherId, roomId, location, pin } = await request.json()

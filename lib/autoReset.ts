@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase'
+import { supabaseAdmin } from './supabaseAdmin'
 
 // Performs the year-end history wipe for one school if it's enabled and due.
 // Idempotent: runs at most once per calendar year (tracked via auto_reset_last_year).

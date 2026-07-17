@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase'
+import { supabaseAdmin } from './supabaseAdmin'
 import type { Session } from './types'
 
 export async function createSession(

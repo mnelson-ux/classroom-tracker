@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
 import { runAutoResetForSchool } from '@/lib/autoReset'
 
