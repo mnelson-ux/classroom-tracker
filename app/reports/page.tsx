@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useEffect, useState } from 'react'
-import { SCHOOLS, isSchool } from '@/lib/schools'
+import { SCHOOLS, isSchool, schoolLabel } from '@/lib/schools'
 import { nameMatches } from '@/lib/search'
 import type { AuthState } from '@/lib/types'
 
@@ -38,6 +38,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [school, setSchool] = useState('hs')
+  const [canSwitch, setCanSwitch] = useState(false) // only admins can switch schools
   const [studentSearch, setStudentSearch] = useState('')
 
   useEffect(() => {
@@ -55,6 +56,19 @@ export default function ReportsPage() {
     } catch {}
     window.location.href = '/'
   }, [])
+
+  // Admins can switch schools; teachers are locked to their own.
+  useEffect(() => {
+    if (!auth?.token) return
+    fetch('/api/teacher/me', { headers: { Authorization: `Bearer ${auth.token}` }, cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return
+        if (d.isAdmin) setCanSwitch(true)
+        else if (d.school) { setCanSwitch(false); setSchool(d.school) }
+      })
+      .catch(() => {})
+  }, [auth])
 
   useEffect(() => {
     if (!auth?.token) return
@@ -109,14 +123,18 @@ export default function ReportsPage() {
             <p className="text-sm text-gray-500">Checkout activity by teacher</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="inline-flex gap-1 rounded-xl bg-gray-100 p-1">
-              {SCHOOLS.map((s) => (
-                <button key={s.id} onClick={() => setSchool(s.id)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${school === s.id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
+            {canSwitch ? (
+              <div className="inline-flex gap-1 rounded-xl bg-gray-100 p-1">
+                {SCHOOLS.map((s) => (
+                  <button key={s.id} onClick={() => setSchool(s.id)}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${school === s.id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700">{schoolLabel(school)}</span>
+            )}
             <a href={`/${school}`} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-gray-50">
               Back to App
             </a>

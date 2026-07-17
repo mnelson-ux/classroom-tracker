@@ -30,7 +30,12 @@ export async function GET(request: Request) {
   weekStart.setDate(weekStart.getDate() - weekStart.getDay()) // back to Sunday
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const school = new URL(request.url).searchParams.get('school')
+  let school = new URL(request.url).searchParams.get('school')
+  // Teachers are locked to their own school regardless of the requested one.
+  if (session.user_type === 'teacher') {
+    const { data: t } = await supabaseAdmin.from('teachers').select('school').eq('id', session.user_id).single()
+    if (t?.school) school = t.school
+  }
   let cq = supabaseAdmin
     .from('checkouts')
     .select('teacher_id, location, check_out_time, duration_minutes, teacher:teachers!checkouts_teacher_id_fkey(id, name), student:students(id, name, gender)')
