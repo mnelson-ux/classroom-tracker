@@ -51,8 +51,9 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [fbMessage, setFbMessage] = useState('')
   const [fbMsg, setFbMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
-  // Teachers are pinned to their own school; admins pick which school they're managing.
-  const school = me ? (me.isAdmin ? adminSchool : (me.school ?? '')) : ''
+  // Admins and "both-school" teachers can pick a school; others are pinned to their own.
+  const canSwitch = !!me && (me.isAdmin || me.school === 'both')
+  const school = me ? (canSwitch ? adminSchool : (me.school ?? '')) : ''
   const authHeaders = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token])
 
   const loadBoard = useCallback(async (sc: string) => {
@@ -160,7 +161,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
           </div>
         </div>
 
-        {isAdmin && (
+        {canSwitch && (
           <div className="flex shrink-0 gap-1 rounded-lg bg-white/60 p-1 md:mb-4">
             {SCHOOLS.map((s) => (
               <button key={s.id} onClick={() => setAdminSchool(s.id)}

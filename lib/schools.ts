@@ -12,5 +12,6 @@ export function isSchool(v: string | null | undefined): v is SchoolId {
 }
 
 export function schoolLabel(id: string | null | undefined): string {
+  if (id === 'both') return 'Both Schools'
   return SCHOOLS.find((s) => s.id === id)?.label ?? 'High School'
 }

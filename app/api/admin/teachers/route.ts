@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     .from('teachers')
     .select('id, name, username, room_id, active, school, has_private_bathroom, is_support, rooms(name)')
     .order('name')
-  if (school) query = query.eq('school', school)
+  if (school) query = query.or(`school.eq.${school},school.eq.both`)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

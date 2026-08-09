@@ -64,7 +64,7 @@ export default function ReportsPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return
-        if (d.isAdmin) setCanSwitch(true)
+        if (d.isAdmin || d.school === 'both') setCanSwitch(true)
         else if (d.school) { setCanSwitch(false); setSchool(d.school) }
       })
       .catch(() => {})

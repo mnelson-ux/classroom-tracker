@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { schoolLabel } from '@/lib/schools'
+import { useEffect, useState } from 'react'
+import { SCHOOLS, schoolLabel } from '@/lib/schools'
 import type { Teacher, Room } from '@/lib/types'
 
 interface Props {
@@ -16,10 +16,14 @@ const emptyForm = { name: '', username: '', password: '', room_id: '', has_priva
 
 export default function TeacherManager({ teachers, rooms, token, school, onRefresh }: Props) {
   const [form, setForm] = useState(emptyForm)
+  const [addSchool, setAddSchool] = useState(school)
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ name: '', username: '', password: '', room_id: '', active: true })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Default the new-teacher school to whichever school the admin is currently viewing.
+  useEffect(() => { setAddSchool(school) }, [school])
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
   const input = 'w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-700/20'
@@ -28,10 +32,17 @@ export default function TeacherManager({ teachers, rooms, token, school, onRefre
   const handleAdd = async () => {
     if (!form.name || !form.username || !form.password) { setError('All fields required'); return }
     setLoading(true); setError('')
-    const res = await fetch('/api/admin/teachers', { method: 'POST', headers, body: JSON.stringify({ ...form, room_id: form.room_id || null, school }) })
+    const res = await fetch('/api/admin/teachers', { method: 'POST', headers, body: JSON.stringify({ ...form, room_id: form.room_id || null, school: addSchool }) })
     const data = await res.json()
     if (!res.ok) { setError(data.error); setLoading(false); return }
-    setForm(emptyForm); onRefresh(); setLoading(false)
+    setForm(emptyForm); setAddSchool(school); onRefresh(); setLoading(false)
+  }
+
+  // Toggle a teacher between "this school only" and "both schools".
+  const handleBothToggle = async (id: string, current: string) => {
+    const next = current === 'both' ? school : 'both'
+    await fetch(`/api/admin/teachers/${id}`, { method: 'PUT', headers, body: JSON.stringify({ school: next }) })
+    onRefresh()
   }
 
   const startEdit = (t: Teacher) => {
@@ -86,13 +97,17 @@ export default function TeacherManager({ teachers, rooms, token, school, onRefre
 
       <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-purple-800">Add New Teacher</h3>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <input type="text" placeholder="Display name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={input} />
           <input type="text" placeholder="Username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className={input} />
           <input type="password" placeholder="Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={input} />
           <select value={form.room_id} onChange={(e) => setForm({ ...form, room_id: e.target.value })} className={select}>
             <option value="">No room</option>
             {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+          <select value={addSchool} onChange={(e) => setAddSchool(e.target.value)} className={select}>
+            {SCHOOLS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            <option value="both">Both Schools</option>
           </select>
           <button onClick={handleAdd} disabled={loading} className="rounded-xl bg-purple-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-purple-900 disabled:opacity-40">
             Add Teacher
@@ -147,6 +162,9 @@ export default function TeacherManager({ teachers, rooms, token, school, onRefre
                   <>
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {t.name}
+                      {t.school === 'both' && (
+                        <span className="ml-2 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-700" title="Teaches at both schools">🏫 Both</span>
+                      )}
                       {t.is_support && (
                         <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700" title="Support staff — not a classroom teacher">🎧 Support</span>
                       )}
@@ -175,7 +193,13 @@ export default function TeacherManager({ teachers, rooms, token, school, onRefre
                           className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${t.is_support ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                           {t.is_support ? 'Support ✓' : 'Support staff'}
                         </button>
-                        <button onClick={() => handleMove(t.id, t.name)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-50">→ {schoolLabel(otherSchool)}</button>
+                        <button onClick={() => handleBothToggle(t.id, t.school)}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${t.school === 'both' ? 'border-purple-200 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                          {t.school === 'both' ? 'Both ✓' : 'Both schools'}
+                        </button>
+                        {t.school !== 'both' && (
+                          <button onClick={() => handleMove(t.id, t.name)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-50">→ {schoolLabel(otherSchool)}</button>
+                        )}
                         <button onClick={() => handleDelete(t.id, t.name)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50">Delete</button>
                       </div>
                     </td>

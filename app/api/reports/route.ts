@@ -31,10 +31,10 @@ export async function GET(request: Request) {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
   let school = new URL(request.url).searchParams.get('school')
-  // Teachers are locked to their own school regardless of the requested one.
+  // Teachers are locked to their own school — unless they teach at both.
   if (session.user_type === 'teacher') {
     const { data: t } = await supabaseAdmin.from('teachers').select('school').eq('id', session.user_id).single()
-    if (t?.school) school = t.school
+    if (t?.school && t.school !== 'both') school = t.school
   }
   let cq = supabaseAdmin
     .from('checkouts')
