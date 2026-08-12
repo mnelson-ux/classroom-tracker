@@ -103,6 +103,16 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
           <p className="mt-2 text-xl font-medium text-white/80">{student.name.split(',')[0]}</p>
         </div>
 
+        {/* Nurse health form summary — so the nurse sees why they came */}
+        {checkout.location === 'Nurse' && (checkout.health_symptoms || checkout.health_note) && (
+          <div className="max-w-md rounded-2xl bg-white/20 px-5 py-4 text-white">
+            <p className="mb-1 text-xs font-bold uppercase tracking-widest text-white/70">Health Pass</p>
+            {checkout.health_symptoms && <p className="text-lg font-semibold">{checkout.health_symptoms}</p>}
+            {checkout.health_note && <p className="mt-1 text-sm text-white/90">{checkout.health_note}</p>}
+            {checkout.health_initials && <p className="mt-2 text-xs text-white/70">Approved by {checkout.health_initials}</p>}
+          </div>
+        )}
+
         {/* Big date — readable from across the room */}
         <p className="text-3xl font-bold text-white sm:text-5xl">{today}</p>
 

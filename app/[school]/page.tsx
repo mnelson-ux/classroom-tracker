@@ -10,7 +10,8 @@ import GreenScreen from '@/components/GreenScreen'
 import LoginModal from '@/components/LoginModal'
 import TeacherTools from '@/components/TeacherTools'
 import MyPassModal from '@/components/MyPassModal'
-import type { Student, Teacher, Checkout, Settings, AuthState } from '@/lib/types'
+import QueuePanel from '@/components/QueuePanel'
+import type { Student, Teacher, Checkout, Settings, AuthState, QueueEntry } from '@/lib/types'
 
 function useClock() {
   const [time, setTime] = useState('')
@@ -30,6 +31,7 @@ export default function SchoolHomePage() {
   const [students, setStudents] = useState<Student[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [activeCheckouts, setActiveCheckouts] = useState<Checkout[]>([])
+  const [queue, setQueue] = useState<QueueEntry[]>([])
   const [settings, setSettings] = useState<Settings>({})
   const [loading, setLoading] = useState(true)
   const [showLogin, setShowLogin] = useState(false)
@@ -43,20 +45,23 @@ export default function SchoolHomePage() {
     if (!isSchool(school)) { setLoading(false); return }
     try {
       const q = `school=${school}&ts=${Date.now()}`
-      const [sRes, tRes, cRes, stRes] = await Promise.all([
+      const [sRes, tRes, cRes, stRes, qRes] = await Promise.all([
         fetch(`/api/students?${q}`, { cache: 'no-store' }),
         fetch(`/api/teachers?${q}`, { cache: 'no-store' }),
         fetch(`/api/checkouts?${q}`, { cache: 'no-store' }),
         fetch(`/api/settings?${q}`, { cache: 'no-store' }),
+        fetch(`/api/queue?${q}`, { cache: 'no-store' }),
       ])
-      const [s, t, c, st] = await Promise.all([
+      const [s, t, c, st, qd] = await Promise.all([
         sRes.json().catch(() => []), tRes.json().catch(() => []),
         cRes.json().catch(() => []), stRes.json().catch(() => ({})),
+        qRes.json().catch(() => []),
       ])
       if (Array.isArray(s)) setStudents(s)
       if (Array.isArray(t)) setTeachers(t)
       if (Array.isArray(c)) setActiveCheckouts(c)
       if (st && typeof st === 'object' && !st.error) setSettings(st)
+      if (Array.isArray(qd)) setQueue(qd)
     } catch {}
     finally { setLoading(false) }
   }, [school])
@@ -70,10 +75,14 @@ export default function SchoolHomePage() {
     const pollInterval = setInterval(loadData, 30000)
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
     if (url.includes('placeholder')) return
+    const refetchQueue = () => fetch(`/api/queue?school=${school}&t=${Date.now()}`, { cache: 'no-store' }).then(r => r.json()).then(d => { if (Array.isArray(d)) setQueue(d) }).catch(() => {})
     const channel = supabase.channel(`checkouts-realtime-${school}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'checkouts' }, () => {
         fetch(`/api/checkouts?school=${school}&t=${Date.now()}`, { cache: 'no-store' }).then(r => r.json()).then(d => { if (Array.isArray(d)) setActiveCheckouts(d) }).catch(() => {})
-      }).subscribe()
+        refetchQueue()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pass_queue' }, refetchQueue)
+      .subscribe()
     return () => { supabase.removeChannel(channel); document.removeEventListener('visibilitychange', handleVisibility); clearInterval(pollInterval) }
   }, [loadData, school])
 
@@ -144,6 +153,12 @@ export default function SchoolHomePage() {
           <CheckoutPanel students={students} teachers={teachers}
             activeCheckouts={activeCheckouts} onCheckoutSuccess={(co, st) => setGreenScreen({ checkout: co, student: st })} />
         </div>
+
+        {queue.length > 0 && (
+          <div className="mx-auto mb-6 max-w-2xl">
+            <QueuePanel queue={queue} />
+          </div>
+        )}
 
         {!auth?.isAuthenticated && (
           <button onClick={() => setShowMyPass(true)}

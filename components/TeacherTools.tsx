@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { nameMatches } from '@/lib/search'
 import { SCHOOLS, schoolLabel } from '@/lib/schools'
 import CheckoutPanel from '@/components/CheckoutPanel'
-import type { Student, Teacher, Checkout } from '@/lib/types'
+import QueuePanel from '@/components/QueuePanel'
+import type { Student, Teacher, Checkout, QueueEntry } from '@/lib/types'
 
 type View = 'home' | 'issue' | 'excuse' | 'feedback'
 
@@ -35,6 +36,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [students, setStudents] = useState<Student[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [active, setActive] = useState<Checkout[]>([])
+  const [queue, setQueue] = useState<QueueEntry[]>([])
   const [, setTick] = useState(0)
 
   const [search, setSearch] = useState('')
@@ -57,16 +59,23 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const authHeaders = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token])
 
   const loadBoard = useCallback(async (sc: string) => {
-    const [sRes, tRes, cRes] = await Promise.all([
+    const [sRes, tRes, cRes, qRes] = await Promise.all([
       fetch(`/api/students?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/teachers?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/checkouts?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`/api/queue?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
     ])
-    const [s, t, c] = await Promise.all([sRes.json(), tRes.json(), cRes.json()])
+    const [s, t, c, qd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json()])
     if (Array.isArray(s)) setStudents(s)
     if (Array.isArray(t)) setTeachers(t)
     if (Array.isArray(c)) setActive(c)
+    if (Array.isArray(qd)) setQueue(qd)
   }, [])
+
+  const leaveQueue = async (id: string) => {
+    await fetch(`/api/queue?id=${id}`, { method: 'DELETE' })
+    loadBoard(school)
+  }
 
   useEffect(() => {
     ;(async () => {
@@ -224,6 +233,12 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                       </div>
                     )
                   })}
+                </div>
+              )}
+
+              {queue.length > 0 && (
+                <div className="mt-8">
+                  <QueuePanel queue={queue} onLeave={leaveQueue} />
                 </div>
               )}
 

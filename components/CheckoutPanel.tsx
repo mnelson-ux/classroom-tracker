@@ -19,6 +19,8 @@ const LOCATIONS = [
   { name: 'Counselor', icon: '💬' },
 ]
 
+const SYMPTOMS = ['Stomach Ache', 'Sore Throat', 'Head Ache', 'Hurt Muscle', 'Hurt Body Part', 'Bleeding']
+
 const inputCls =
   'w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-700/20'
 
@@ -27,10 +29,20 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
   const [studentId, setStudentId] = useState('')
   const [location, setLocation] = useState('')
   const [teacherId, setTeacherId] = useState('')
-  const [message, setMessage] = useState<{ text: string; type: 'error' | 'warn' } | null>(null)
+  const [message, setMessage] = useState<{ text: string; type: 'error' | 'warn' | 'ok' } | null>(null)
   const [showPin, setShowPin] = useState(false)
+  const [showHealth, setShowHealth] = useState(false)
   const [limitVideo, setLimitVideo] = useState<string | null>(null)
   const [focused, setFocused] = useState(false)
+
+  // Nurse health form
+  const [symptoms, setSymptoms] = useState<string[]>([])
+  const [otherNote, setOtherNote] = useState('')
+  const [initials, setInitials] = useState('')
+
+  // Queue
+  const [queuePrompt, setQueuePrompt] = useState<{ location: string; position: number } | null>(null)
+  const [pendingPin, setPendingPin] = useState('')
 
   const filtered = useMemo(() => {
     const q = search.trim()
@@ -40,15 +52,19 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
   const selectedStudent = students.find((s) => s.id === studentId)
   const firstName = selectedStudent ? selectedStudent.name.split(',')[1]?.trim() ?? selectedStudent.name : ''
 
-  const flash = (text: string, type: 'error' | 'warn' = 'warn') => {
+  const flash = (text: string, type: 'error' | 'warn' | 'ok' = 'warn') => {
     setMessage({ text, type })
-    setTimeout(() => setMessage(null), 5000)
+    setTimeout(() => setMessage(null), 6000)
   }
+
+  const resetForm = () => { setStudentId(''); setTeacherId(''); setLocation(''); setSearch(''); setSymptoms([]); setOtherNote(''); setInitials('') }
 
   const handleCheckout = () => {
     if (!studentId || !location || !teacherId) { flash('Please choose your name, a location, and your teacher', 'error'); return }
     const existing = activeCheckouts.find((c) => c.student_id === studentId)
     if (existing && selectedStudent) { onCheckoutSuccess(existing, selectedStudent); return }
+    // Nurse requires the quick health form + a teacher's approval first.
+    if (location === 'Nurse') { setShowHealth(true); return }
     setShowPin(true)
   }
 
@@ -56,16 +72,36 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
     const t = teachers.find((t) => t.id === teacherId)
     const res = await fetch('/api/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ studentId, teacherId, roomId: t?.room_id ?? null, location, pin }),
+      body: JSON.stringify({
+        studentId, teacherId, roomId: t?.room_id ?? null, location, pin,
+        healthSymptoms: symptoms, healthNote: otherNote, healthInitials: initials,
+      }),
     })
     const data = await res.json()
     if (!res.ok) {
-      if (data.limitReached) { flash(data.error, 'warn'); setShowPin(false); setLimitVideo(data.error) }
+      if (data.limitReached) { flash(data.error, 'warn'); setShowPin(false); setLimitVideo(data.error); return null }
+      // Location is full — offer the waiting line instead of a dead end.
+      if (data.canQueue) { setPendingPin(pin); setQueuePrompt({ location: data.location, position: data.position }); setShowPin(false); return null }
+      if (data.inQueue || data.queueFull || data.protectedTime) { flash(data.error, 'warn'); setShowPin(false); return null }
       return data.error ?? 'Checkout failed'
     }
     if (selectedStudent) onCheckoutSuccess(data.checkout, selectedStudent)
-    setStudentId(''); setTeacherId(''); setLocation(''); setSearch('')
+    resetForm()
     return null
+  }
+
+  const joinQueue = async () => {
+    if (!queuePrompt) return
+    const t = teachers.find((t) => t.id === teacherId)
+    const res = await fetch('/api/queue', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId, teacherId: t?.id ?? null, location: queuePrompt.location, pin: pendingPin }),
+    })
+    const data = await res.json()
+    setQueuePrompt(null); setPendingPin('')
+    if (!res.ok) { flash(data.error ?? 'Could not join the line', 'error'); return }
+    flash(`You're #${data.position} in line for the ${queuePrompt.location}. Watch the screen — we'll show when it's your turn.`, 'ok')
+    resetForm()
   }
 
   const ready = !!(studentId && location && teacherId)
@@ -133,14 +169,74 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
         </button>
 
         {message && (
-          <div className={`mt-4 rounded-xl px-4 py-3 text-sm font-medium ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+          <div className={`mt-4 rounded-xl px-4 py-3 text-sm font-medium ${message.type === 'error' ? 'bg-red-50 text-red-700' : message.type === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
             {message.text}
           </div>
         )}
       </div>
 
+      {/* Nurse health form + teacher approval */}
+      {showHealth && selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm sm:items-center" onClick={() => setShowHealth(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-2xl">🩺</span>
+              <h2 className="text-lg font-bold text-gray-900">Health Pass — {firstName}</h2>
+            </div>
+            <p className="mb-3 text-sm text-gray-500">Check anything that applies:</p>
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              {SYMPTOMS.map((sym) => {
+                const on = symptoms.includes(sym)
+                return (
+                  <button key={sym} type="button"
+                    onClick={() => setSymptoms((cur) => on ? cur.filter((x) => x !== sym) : [...cur, sym])}
+                    className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-left text-sm font-semibold transition ${on ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 bg-white text-gray-700 hover:border-red-200'}`}>
+                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${on ? 'border-red-500 bg-red-500 text-white' : 'border-gray-300'}`}>{on ? '✓' : ''}</span>
+                    {sym}
+                  </button>
+                )
+              })}
+            </div>
+            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-gray-600">Other</label>
+            <textarea value={otherNote} onChange={(e) => setOtherNote(e.target.value)} rows={2}
+              placeholder="Anything else…" className={`mb-4 ${inputCls}`} />
+
+            <div className="mb-4 rounded-xl bg-purple-50 p-4">
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-purple-800">Teacher approval</label>
+              <p className="mb-2 text-xs text-purple-700">A teacher enters their initials to approve this pass.</p>
+              <input value={initials} onChange={(e) => setInitials(e.target.value.slice(0, 6))}
+                placeholder="Initials" className="w-32 rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm font-semibold uppercase text-gray-900 focus:border-purple-700 focus:outline-none" />
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowHealth(false)} className="flex-1 rounded-xl border border-gray-300 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={() => { setShowHealth(false); setShowPin(true) }}
+                disabled={!initials.trim() || (symptoms.length === 0 && !otherNote.trim())}
+                className="flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40">
+                Approve &amp; Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showPin && selectedStudent && (
         <PinModal title={`PIN for ${firstName}`} onSubmit={submitCheckout} onClose={() => setShowPin(false)} />
+      )}
+
+      {/* Location full → join the line */}
+      {queuePrompt && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
+            <div className="mb-2 text-4xl">⏳</div>
+            <h2 className="mb-1 text-lg font-bold text-gray-900">The {queuePrompt.location} is full</h2>
+            <p className="mb-5 text-sm text-gray-500">Do you want to wait in line? You&apos;d be <span className="font-bold text-gray-900">#{queuePrompt.position}</span>. We&apos;ll show your name on the screen when it&apos;s your turn.</p>
+            <div className="flex gap-3">
+              <button onClick={() => { setQueuePrompt(null); setPendingPin(''); resetForm() }} className="flex-1 rounded-xl border border-gray-300 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">No thanks</button>
+              <button onClick={joinQueue} className="flex-1 rounded-xl bg-purple-800 py-3 text-sm font-semibold text-white hover:bg-purple-900">Join the line</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {limitVideo && (

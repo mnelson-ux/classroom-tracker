@@ -113,6 +113,7 @@ export default function SettingsManager({ settings, token, school, onRefresh }: 
   const groups = [
     { title: 'Display', keys: ['page_title', 'girls_section_title', 'boys_section_title'] },
     { title: 'Bathroom Limits', keys: ['max_bathroom_per_room_boys', 'max_bathroom_per_room_girls', 'max_bathroom_total_boys', 'max_bathroom_total_girls', 'time_limit_minutes'] },
+    { title: 'Nurse & Waiting Line', keys: ['nurse_capacity', 'queue_max'] },
     { title: 'Locations', keys: ['locations'] },
   ]
 
@@ -137,8 +138,8 @@ export default function SettingsManager({ settings, token, school, onRefresh }: 
                       <p className="mb-2 text-xs text-gray-500">{setting.description}</p>
                     )}
                     <input
-                      type={key.includes('minutes') || key.includes('max') ? 'number' : 'text'}
-                      min={key.includes('max') || key.includes('minutes') ? '0' : undefined}
+                      type={key.includes('minutes') || key.includes('max') || key.includes('capacity') ? 'number' : 'text'}
+                      min={key.includes('max') || key.includes('minutes') || key.includes('capacity') ? '0' : undefined}
                       value={values[key] ?? setting.value}
                       onChange={(e) => setValues({ ...values, [key]: e.target.value })}
                       className={input}

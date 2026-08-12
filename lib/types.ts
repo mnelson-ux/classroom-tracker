@@ -52,6 +52,9 @@ export interface Checkout {
   destination_teacher_id: string | null
   reason: string | null
   arrival_confirmed: boolean
+  health_symptoms: string | null
+  health_note: string | null
+  health_initials: string | null
   created_at: string
   student?: Student
   teacher?: Teacher
@@ -60,6 +63,24 @@ export interface Checkout {
 
 export interface Settings {
   [key: string]: string
+}
+
+export interface QueueEntry {
+  id: string
+  location: string
+  gender: string | null
+  created_at: string
+  student?: { id: string; name: string }
+}
+
+export interface ProtectedTime {
+  id: string
+  school: string
+  label: string | null
+  start_minute: number
+  end_minute: number
+  active: boolean
+  created_at: string
 }
 
 export interface Feedback {
