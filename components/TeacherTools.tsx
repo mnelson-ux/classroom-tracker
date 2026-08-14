@@ -63,14 +63,14 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
       fetch(`/api/students?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/teachers?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/checkouts?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
-      fetch(`/api/queue?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`/api/queue?school=${sc}&ts=${Date.now()}`, { headers: authHeaders, cache: 'no-store' }),
     ])
     const [s, t, c, qd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json()])
     if (Array.isArray(s)) setStudents(s)
     if (Array.isArray(t)) setTeachers(t)
     if (Array.isArray(c)) setActive(c)
     if (Array.isArray(qd)) setQueue(qd)
-  }, [])
+  }, [authHeaders])
 
   const leaveQueue = async (id: string) => {
     await fetch(`/api/queue?id=${id}`, { method: 'DELETE' })

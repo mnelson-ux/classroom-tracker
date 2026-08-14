@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { verifySession, getTokenFromRequest } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -8,13 +9,16 @@ export const fetchCache = 'force-no-store'
 
 const noStore = { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
 
-// GET — the current waiting lines for a school (public; shown on the kiosk/board).
+// GET — the current waiting lines for a school.
+// Student names are only included for authenticated staff; the public kiosk gets
+// an anonymous list (positions only, no names in the payload).
 export async function GET(request: Request) {
   const school = new URL(request.url).searchParams.get('school')
-  let q = supabaseAdmin
-    .from('pass_queue')
-    .select('id, location, gender, created_at, student:students(id, name)')
-    .order('created_at', { ascending: true })
+  const isStaff = !!(await verifySession(getTokenFromRequest(request)))
+  const columns = isStaff
+    ? 'id, location, gender, created_at, student:students(id, name)'
+    : 'id, location, gender, created_at'
+  let q = supabaseAdmin.from('pass_queue').select(columns).order('created_at', { ascending: true })
   if (school) q = q.eq('school', school)
   const { data, error } = await q
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

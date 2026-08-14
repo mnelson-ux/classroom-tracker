@@ -156,7 +156,7 @@ export default function SchoolHomePage() {
 
         {queue.length > 0 && (
           <div className="mx-auto mb-6 max-w-2xl">
-            <QueuePanel queue={queue} />
+            <QueuePanel queue={queue} anonymous />
           </div>
         )}
 
