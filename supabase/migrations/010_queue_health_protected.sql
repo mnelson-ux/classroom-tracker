@@ -21,6 +21,7 @@ create index if not exists idx_pass_queue_student on pass_queue(student_id);
 alter table pass_queue enable row level security;
 drop policy if exists "public_read_queue" on pass_queue;
 create policy "public_read_queue" on pass_queue for select using (true);
+grant all on table pass_queue to anon, authenticated, service_role;
 
 -- 2. NURSE HEALTH FORM --------------------------------------
 -- Filled out when a student checks out to the Nurse, shown on their pass.
@@ -45,6 +46,7 @@ create index if not exists idx_protected_times_school on protected_times(school)
 alter table protected_times enable row level security;
 drop policy if exists "public_read_protected" on protected_times;
 create policy "public_read_protected" on protected_times for select using (true);
+grant all on table protected_times to anon, authenticated, service_role;
 
 -- 4. NEW SETTINGS (per school) ------------------------------
 insert into settings (key, value, label, description, school)
