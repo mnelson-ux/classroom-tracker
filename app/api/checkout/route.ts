@@ -41,6 +41,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Student is already checked out' }, { status: 409 })
   }
 
+  // ---- KEEP-APART ----
+  // Certain students may not be out at the same time (anti-meet-up). If a paired
+  // partner is currently out (to any location), this student is blocked.
+  const { data: pairs } = await supabaseAdmin
+    .from('keep_apart')
+    .select('student_a, student_b')
+    .eq('school', student.school)
+    .or(`student_a.eq.${studentId},student_b.eq.${studentId}`)
+  const partnerIds = (pairs ?? []).map((p) => (p.student_a === studentId ? p.student_b : p.student_a))
+  if (partnerIds.length > 0) {
+    const { data: outPartners } = await supabaseAdmin
+      .from('checkouts')
+      .select('student:students(name)')
+      .eq('is_checked_out', true)
+      .eq('school', student.school)
+      .in('student_id', partnerIds)
+    if (outPartners && outPartners.length > 0) {
+      const raw = (outPartners[0] as any).student?.name ?? ''
+      const partnerFirst = raw.includes(',') ? raw.split(',')[1]?.trim() : raw
+      return NextResponse.json({
+        error: `You can't check out right now${partnerFirst ? ` — ${partnerFirst} is already out` : ''}. Please wait until they're back.`,
+        keepApart: true,
+      }, { status: 409 })
+    }
+  }
+
   // Load this school's settings once (used by protected time, queue, and limits).
   const { data: settingsRows } = await supabaseAdmin.from('settings').select('key, value').eq('school', student.school)
   const settings: Record<string, string> = {}

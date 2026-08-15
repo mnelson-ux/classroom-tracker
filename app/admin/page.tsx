@@ -8,10 +8,11 @@ import SettingsManager from '@/components/admin/SettingsManager'
 import HistoryView from '@/components/admin/HistoryView'
 import FeedbackManager from '@/components/admin/FeedbackManager'
 import ProtectedTimeManager from '@/components/admin/ProtectedTimeManager'
+import KeepApartManager from '@/components/admin/KeepApartManager'
 import { SCHOOLS } from '@/lib/schools'
 import type { AuthState, Student, Teacher, Room } from '@/lib/types'
 
-type Tab = 'students' | 'teachers' | 'rooms' | 'settings' | 'protected' | 'history' | 'requests'
+type Tab = 'students' | 'teachers' | 'rooms' | 'settings' | 'protected' | 'keepapart' | 'history' | 'requests'
 
 export default function AdminPage() {
   const [auth, setAuth] = useState<AuthState | null>(null)
@@ -113,6 +114,7 @@ export default function AdminPage() {
     { id: 'rooms', label: 'Rooms' },
     { id: 'settings', label: 'Settings' },
     { id: 'protected', label: 'Protected Time' },
+    { id: 'keepapart', label: 'Keep Apart' },
     { id: 'history', label: 'History' },
     { id: 'requests', label: 'Requests' },
   ]
@@ -184,6 +186,9 @@ export default function AdminPage() {
         )}
         {tab === 'protected' && (
           <ProtectedTimeManager token={auth.token!} school={school} />
+        )}
+        {tab === 'keepapart' && (
+          <KeepApartManager students={students} token={auth.token!} school={school} />
         )}
         {tab === 'history' && (
           <HistoryView token={auth.token!} students={students} school={school} />
