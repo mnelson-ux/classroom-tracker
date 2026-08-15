@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PinModal from './PinModal'
 import { nameMatches } from '@/lib/search'
 import type { Student, Teacher, Checkout } from '@/lib/types'
@@ -43,6 +43,8 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
   // Queue
   const [queuePrompt, setQueuePrompt] = useState<{ location: string; position: number } | null>(null)
   const [pendingPin, setPendingPin] = useState('')
+  const [queued, setQueued] = useState<{ location: string } | null>(null)
+  const [queueReady, setQueueReady] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim()
@@ -58,6 +60,25 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
   }
 
   const resetForm = () => { setStudentId(''); setTeacherId(''); setLocation(''); setSearch(''); setSymptoms([]); setOtherNote(''); setInitials('') }
+
+  // While in line, quietly poll THIS student's own status (their turn or not).
+  // Nothing about the rest of the line is shown — no names, no position number.
+  useEffect(() => {
+    if (!queued || !studentId || !selectedStudent) return
+    let stop = false
+    const check = async () => {
+      try {
+        const r = await fetch(`/api/queue/status?studentId=${studentId}&school=${selectedStudent.school}&ts=${Date.now()}`, { cache: 'no-store' })
+        const d = await r.json()
+        if (stop) return
+        if (!d.inLine) { setQueued(null); setQueueReady(false); resetForm() }
+        else setQueueReady(!!d.ready)
+      } catch {}
+    }
+    check()
+    const id = setInterval(check, 7000)
+    return () => { stop = true; clearInterval(id) }
+  }, [queued, studentId, selectedStudent])
 
   const handleCheckout = () => {
     if (!studentId || !location || !teacherId) { flash('Please choose your name, a location, and your teacher', 'error'); return }
@@ -86,6 +107,7 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
       return data.error ?? 'Checkout failed'
     }
     if (selectedStudent) onCheckoutSuccess(data.checkout, selectedStudent)
+    setQueued(null); setQueueReady(false)
     resetForm()
     return null
   }
@@ -98,10 +120,16 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
       body: JSON.stringify({ studentId, teacherId: t?.id ?? null, location: queuePrompt.location, pin: pendingPin }),
     })
     const data = await res.json()
+    const loc = queuePrompt.location
     setQueuePrompt(null); setPendingPin('')
     if (!res.ok) { flash(data.error ?? 'Could not join the line', 'error'); return }
-    flash(`You're #${data.position} in line for the ${queuePrompt.location}. Watch the screen — we'll show when it's your turn.`, 'ok')
-    resetForm()
+    // Enter private "in line" mode on this student's own device. No list, no number.
+    setQueued({ location: loc }); setQueueReady(false)
+  }
+
+  const leaveLine = async () => {
+    if (studentId) await fetch(`/api/queue?studentId=${studentId}`, { method: 'DELETE' })
+    setQueued(null); setQueueReady(false); resetForm()
   }
 
   const ready = !!(studentId && location && teacherId)
@@ -235,6 +263,32 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
               <button onClick={() => { setQueuePrompt(null); setPendingPin(''); resetForm() }} className="flex-1 rounded-xl border border-gray-300 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">No thanks</button>
               <button onClick={joinQueue} className="flex-1 rounded-xl bg-purple-800 py-3 text-sm font-semibold text-white hover:bg-purple-900">Join the line</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Private "in line" status — only this student's own turn, nothing else */}
+      {queued && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl">
+            {queueReady ? (
+              <>
+                <div className="mb-3 text-5xl">✅</div>
+                <h2 className="mb-1 text-2xl font-bold text-emerald-700">It&apos;s your turn!</h2>
+                <p className="mb-6 text-sm text-gray-600">A spot for the {queued.location} just opened up{firstName ? `, ${firstName}` : ''}. Tap below to check out now.</p>
+                <button onClick={() => setShowPin(true)}
+                  className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 py-4 text-lg font-bold text-white shadow-sm hover:from-emerald-700 hover:to-green-700">
+                  Check Out Now
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="mb-3 text-5xl">⏳</div>
+                <h2 className="mb-1 text-2xl font-bold text-gray-900">You&apos;re in line</h2>
+                <p className="mb-6 text-sm text-gray-600">The {queued.location} is full right now. Hang tight — this screen will let you know the moment it&apos;s your turn. You don&apos;t need to do anything.</p>
+              </>
+            )}
+            <button onClick={leaveLine} className="mt-3 w-full rounded-2xl border border-gray-300 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50">Leave the line</button>
           </div>
         </div>
       )}
