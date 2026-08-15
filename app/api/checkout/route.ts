@@ -51,17 +51,16 @@ export async function POST(request: Request) {
     .or(`student_a.eq.${studentId},student_b.eq.${studentId}`)
   const partnerIds = (pairs ?? []).map((p) => (p.student_a === studentId ? p.student_b : p.student_a))
   if (partnerIds.length > 0) {
-    const { data: outPartners } = await supabaseAdmin
+    const { count: outPartners } = await supabaseAdmin
       .from('checkouts')
-      .select('student:students(name)')
+      .select('id', { count: 'exact', head: true })
       .eq('is_checked_out', true)
       .eq('school', student.school)
       .in('student_id', partnerIds)
-    if (outPartners && outPartners.length > 0) {
-      const raw = (outPartners[0] as any).student?.name ?? ''
-      const partnerFirst = raw.includes(',') ? raw.split(',')[1]?.trim() : raw
+    if ((outPartners ?? 0) > 0) {
+      // Neutral message on purpose — never reveal who the paired student is.
       return NextResponse.json({
-        error: `You can't check out right now${partnerFirst ? ` — ${partnerFirst} is already out` : ''}. Please wait until they're back.`,
+        error: `You can't check out right now. Please try again in a little while, or ask your teacher.`,
         keepApart: true,
       }, { status: 409 })
     }
