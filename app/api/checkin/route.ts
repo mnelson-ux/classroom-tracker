@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { checkThrottle, registerFailure, clearThrottle, lockMessage, PIN_THROTTLE } from '@/lib/throttle'
 
 export async function POST(request: Request) {
   const { checkoutId, studentId, pin } = await request.json()
@@ -20,10 +21,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Student not found' }, { status: 404 })
   }
 
+  const throttleKey = `pin:${studentId}`
+  const lock = await checkThrottle(throttleKey)
+  if (lock.locked) {
+    return NextResponse.json({ error: lockMessage(lock.retryAfterSec) }, { status: 429 })
+  }
+
   const pinValid = await bcrypt.compare(pin, student.pin_hash)
   if (!pinValid) {
+    await registerFailure(throttleKey, PIN_THROTTLE)
     return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 })
   }
+  await clearThrottle(throttleKey)
 
   // Fetch the checkout record
   const { data: checkout } = await supabaseAdmin

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { minutesOfDayInTz, minutesToLabel } from '@/lib/timeWindows'
+import { checkThrottle, registerFailure, clearThrottle, lockMessage, PIN_THROTTLE } from '@/lib/throttle'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,10 +25,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Student not found' }, { status: 404 })
   }
 
+  // Brute-force lock on this student's PIN (shared across checkout/checkin/my-pass/queue).
+  const throttleKey = `pin:${studentId}`
+  const lock = await checkThrottle(throttleKey)
+  if (lock.locked) {
+    return NextResponse.json({ error: lockMessage(lock.retryAfterSec) }, { status: 429 })
+  }
+
   const pinValid = await bcrypt.compare(pin, student.pin_hash)
   if (!pinValid) {
+    await registerFailure(throttleKey, PIN_THROTTLE)
     return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 })
   }
+  await clearThrottle(throttleKey)
 
   // Check if student is already checked out
   const { data: existing } = await supabaseAdmin

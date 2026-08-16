@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { checkThrottle, registerFailure, clearThrottle, lockMessage, PIN_THROTTLE } from '@/lib/throttle'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,8 +14,13 @@ export async function POST(request: Request) {
     .from('students').select('id, name, pin_hash').eq('id', studentId).eq('active', true).single()
   if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 })
 
+  const throttleKey = `pin:${studentId}`
+  const lock = await checkThrottle(throttleKey)
+  if (lock.locked) return NextResponse.json({ error: lockMessage(lock.retryAfterSec) }, { status: 429 })
+
   const ok = await bcrypt.compare(pin, student.pin_hash)
-  if (!ok) return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 })
+  if (!ok) { await registerFailure(throttleKey, PIN_THROTTLE); return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 }) }
+  await clearThrottle(throttleKey)
 
   const { data: pass } = await supabaseAdmin
     .from('checkouts')
