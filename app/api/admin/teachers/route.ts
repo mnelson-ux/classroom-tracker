@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
+import { isSchool } from '@/lib/schools'
 
 export async function GET(request: Request) {
   if (!await verifyAdminSession(getTokenFromRequest(request))) {
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
     .from('teachers')
     .select('id, name, username, room_id, active, school, has_private_bathroom, is_support, rooms(name)')
     .order('name')
-  if (school) query = query.or(`school.eq.${school},school.eq.both`)
+  if (isSchool(school)) query = query.or(`school.eq.${school},school.eq.both`)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

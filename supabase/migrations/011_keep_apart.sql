@@ -18,5 +18,5 @@ create index if not exists idx_keep_apart_b on keep_apart(student_b);
 
 alter table keep_apart enable row level security;
 drop policy if exists "public_read_keep_apart" on keep_apart;
-create policy "public_read_keep_apart" on keep_apart for select using (true);
-grant all on table keep_apart to anon, authenticated, service_role;
+-- Server-only: read/written via the service-role API routes; never exposed to anon.
+grant all on table keep_apart to service_role;

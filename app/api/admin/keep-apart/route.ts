@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
+import { isUuid } from '@/lib/validate'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
   const { school, studentA, studentB } = await request.json()
   if (!studentA || !studentB) return NextResponse.json({ error: 'Pick two students' }, { status: 400 })
   if (studentA === studentB) return NextResponse.json({ error: 'Pick two different students' }, { status: 400 })
+  if (!isUuid(studentA) || !isUuid(studentB)) return NextResponse.json({ error: 'Invalid student' }, { status: 400 })
 
   // Avoid duplicate pairs (either order).
   const { data: dupe } = await supabaseAdmin

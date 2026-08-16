@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { minutesOfDayInTz, minutesToLabel } from '@/lib/timeWindows'
 import { checkThrottle, registerFailure, clearThrottle, lockMessage, PIN_THROTTLE } from '@/lib/throttle'
+import { isUuid } from '@/lib/validate'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +12,9 @@ export async function POST(request: Request) {
 
   if (!studentId || !teacherId || !location || !pin) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+  if (!isUuid(studentId) || !isUuid(teacherId) || (roomId != null && !isUuid(roomId))) {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
   // Verify student PIN
