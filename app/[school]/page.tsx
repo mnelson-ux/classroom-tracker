@@ -10,6 +10,7 @@ import GreenScreen from '@/components/GreenScreen'
 import LoginModal from '@/components/LoginModal'
 import TeacherTools from '@/components/TeacherTools'
 import MyPassModal from '@/components/MyPassModal'
+import ChangePinModal from '@/components/ChangePinModal'
 import type { Student, Teacher, Checkout, Settings, AuthState } from '@/lib/types'
 
 function useClock() {
@@ -34,6 +35,7 @@ export default function SchoolHomePage() {
   const [loading, setLoading] = useState(true)
   const [showLogin, setShowLogin] = useState(false)
   const [showMyPass, setShowMyPass] = useState(false)
+  const [showChangePin, setShowChangePin] = useState(false)
   const [auth, setAuth] = useState<AuthState | null>(null)
   const [greenScreen, setGreenScreen] = useState<{ checkout: Checkout; student: Student } | null>(null)
 
@@ -147,10 +149,16 @@ export default function SchoolHomePage() {
         </div>
 
         {!auth?.isAuthenticated && (
-          <button onClick={() => setShowMyPass(true)}
-            className="mb-8 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-purple-200 bg-white py-4 text-base font-bold text-purple-800 shadow-sm transition hover:bg-purple-50">
-            🎫 Already have a pass? Tap to show it
-          </button>
+          <div className="mb-8 grid gap-3 sm:grid-cols-2">
+            <button onClick={() => setShowMyPass(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-purple-200 bg-white py-4 text-base font-bold text-purple-800 shadow-sm transition hover:bg-purple-50">
+              🎫 Already have a pass? Show it
+            </button>
+            <button onClick={() => setShowChangePin(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-gray-200 bg-white py-4 text-base font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">
+              🔑 Change my PIN
+            </button>
+          </div>
         )}
 
         {auth?.isAuthenticated && (auth.userType === 'teacher' || auth.userType === 'admin') && (
@@ -172,6 +180,10 @@ export default function SchoolHomePage() {
           onFound={(co, st) => { setGreenScreen({ checkout: co, student: st }); setShowMyPass(false) }}
           onClose={() => setShowMyPass(false)}
         />
+      )}
+
+      {showChangePin && (
+        <ChangePinModal students={students} teachers={teachers} onClose={() => setShowChangePin(false)} />
       )}
 
       {showLogin && (

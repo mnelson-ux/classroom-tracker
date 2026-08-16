@@ -7,7 +7,9 @@ import CheckoutPanel from '@/components/CheckoutPanel'
 import QueuePanel from '@/components/QueuePanel'
 import type { Student, Teacher, Checkout, QueueEntry } from '@/lib/types'
 
-type View = 'home' | 'issue' | 'excuse' | 'feedback'
+type View = 'home' | 'issue' | 'excuse' | 'feedback' | 'pinreq'
+
+interface PinReq { id: string; created_at: string; student?: { id: string; name: string }; teacher?: { id: string; name: string } }
 
 function mins(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
@@ -25,6 +27,7 @@ const icons = {
   chart: svg(<><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></>),
   settings: svg(<><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></>),
   logout: svg(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></>),
+  key: svg(<><circle cx="7.5" cy="15.5" r="4.5" /><path d="m10.5 12.5 8-8" /><path d="m17 4 3 3" /><path d="m14 7 3 3" /></>),
 }
 
 export default function TeacherTools({ token, onLogout, initialSchool }: { token: string; onLogout: () => void; initialSchool?: string }) {
@@ -37,6 +40,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [active, setActive] = useState<Checkout[]>([])
   const [queue, setQueue] = useState<QueueEntry[]>([])
+  const [pinReqs, setPinReqs] = useState<PinReq[]>([])
   const [, setTick] = useState(0)
 
   const [search, setSearch] = useState('')
@@ -59,21 +63,28 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const authHeaders = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token])
 
   const loadBoard = useCallback(async (sc: string) => {
-    const [sRes, tRes, cRes, qRes] = await Promise.all([
+    const [sRes, tRes, cRes, qRes, pRes] = await Promise.all([
       fetch(`/api/students?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/teachers?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/checkouts?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/queue?school=${sc}&ts=${Date.now()}`, { headers: authHeaders, cache: 'no-store' }),
+      fetch(`/api/teacher/pin-requests?school=${sc}&ts=${Date.now()}`, { headers: authHeaders, cache: 'no-store' }),
     ])
-    const [s, t, c, qd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json()])
+    const [s, t, c, qd, pd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json(), pRes.json()])
     if (Array.isArray(s)) setStudents(s)
     if (Array.isArray(t)) setTeachers(t)
     if (Array.isArray(c)) setActive(c)
     if (Array.isArray(qd)) setQueue(qd)
+    if (Array.isArray(pd)) setPinReqs(pd)
   }, [authHeaders])
 
   const leaveQueue = async (id: string) => {
     await fetch(`/api/queue?id=${id}`, { method: 'DELETE' })
+    loadBoard(school)
+  }
+
+  const resolvePin = async (id: string, action: 'approve' | 'deny') => {
+    await fetch('/api/teacher/pin-requests', { method: 'POST', headers: authHeaders, body: JSON.stringify({ id, action }) })
     loadBoard(school)
   }
 
@@ -150,10 +161,11 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const selName = students.find((s) => s.id === studentId)?.name
   const inputCls = 'w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 focus:border-purple-700 focus:outline-none'
 
-  const NavBtn = ({ id, label, icon }: { id: View; label: string; icon: React.ReactNode }) => (
+  const NavBtn = ({ id, label, icon, badge }: { id: View; label: string; icon: React.ReactNode; badge?: number }) => (
     <button onClick={() => setView(id)}
       className={`flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'}`}>
-      {icon} {label}
+      {icon} <span className="flex-1">{label}</span>
+      {!!badge && <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">{badge}</span>}
     </button>
   )
   const linkCls = 'flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-white/70 hover:text-gray-900'
@@ -185,6 +197,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
           <NavBtn id="home" label="Check Out & Board" icon={icons.board} />
           <NavBtn id="issue" label="Issue Pass" icon={icons.ticket} />
           <NavBtn id="excuse" label="Excuse Student" icon={icons.edit} />
+          <NavBtn id="pinreq" label="PIN Requests" icon={icons.key} badge={pinReqs.length} />
           <NavBtn id="feedback" label="Report / Request" icon={icons.message} />
           <div className="hidden h-px bg-gray-200 md:my-3 md:block" />
           <a href={`/reports?school=${school}`} className={linkCls}>{icons.chart} Reports</a>
@@ -315,6 +328,35 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
               <button onClick={logExcuse} className="w-full rounded-2xl bg-purple-800 py-3.5 text-base font-bold text-white hover:bg-purple-900">Log Excuse</button>
               {exMsg && <p className={`mt-2 text-sm font-medium ${exMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>{exMsg.text}</p>}
               <p className="mt-3 text-xs text-gray-500">Issues a pass the student can show their next teacher (via “Show My Pass”). It appears on the board and in reports, and doesn&apos;t count against bathroom limits.</p>
+            </div>
+          )}
+
+          {view === 'pinreq' && (
+            <div className="max-w-2xl">
+              <h2 className="mb-1 text-2xl font-bold text-gray-900">PIN Change Requests</h2>
+              <p className="mb-5 text-sm text-gray-500">{isAdmin ? 'Students who asked to change their PIN.' : 'Students who chose you to approve their new PIN.'} Approving applies the new PIN immediately.</p>
+              {pinReqs.length === 0 ? (
+                <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+                  <div className="text-3xl text-gray-300">✓</div>
+                  <p className="mt-2 text-sm text-gray-500">No pending requests.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {pinReqs.map((r) => (
+                    <div key={r.id} className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900">{r.student?.name ?? 'Student'}</p>
+                        <p className="text-xs text-gray-500">Requested {new Date(r.created_at).toLocaleString()}{isAdmin && r.teacher ? ` · to ${r.teacher.name}` : ''}</p>
+                        <p className="mt-1 text-xs text-gray-400">The new PIN is hidden — the student knows it. Only approve if you recognize this student.</p>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button onClick={() => resolvePin(r.id, 'deny')} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Deny</button>
+                        <button onClick={() => resolvePin(r.id, 'approve')} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Approve</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
