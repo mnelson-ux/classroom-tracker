@@ -130,6 +130,20 @@ export default function StudentManager({ students, token, school, onRefresh }: P
     onRefresh()
   }
 
+  // Direct PIN reset (for a student who forgot their PIN — no approval needed).
+  const handleResetPin = async (id: string, name: string) => {
+    let pin = window.prompt(`Reset PIN for ${name}.\n\nEnter a new 4-digit PIN, or leave blank to generate a random one:`)
+    if (pin === null) return // cancelled
+    pin = pin.trim()
+    if (pin === '') pin = String(Math.floor(Math.random() * 10000)).padStart(4, '0')
+    if (!/^\d{4}$/.test(pin)) { setError('PIN must be exactly 4 digits.'); return }
+    setError('')
+    const res = await fetch(`/api/admin/students/${id}`, { method: 'PUT', headers, body: JSON.stringify({ pin }) })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error ?? 'Reset failed'); return }
+    window.alert(`${name}'s PIN is now:  ${pin}\n\nWrite it down and give it to the student — it can't be viewed again.`)
+    onRefresh()
+  }
+
   const otherSchool = school === 'hs' ? 'ms' : 'hs'
   const handleMove = async (id: string, name: string) => {
     if (!confirm(`Move ${name} to ${schoolLabel(otherSchool)}?`)) return
@@ -292,6 +306,7 @@ export default function StudentManager({ students, token, school, onRefresh }: P
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button onClick={() => startEdit(s)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-900 hover:bg-gray-50">Edit</button>
+                        <button onClick={() => handleResetPin(s.id, s.name)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50">Reset PIN</button>
                         <button onClick={() => handleToggle(s.id, s.active)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50">
                           {s.active ? 'Deactivate' : 'Activate'}
                         </button>
