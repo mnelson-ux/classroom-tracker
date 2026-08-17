@@ -7,9 +7,7 @@ import CheckoutPanel from '@/components/CheckoutPanel'
 import QueuePanel from '@/components/QueuePanel'
 import type { Student, Teacher, Checkout, QueueEntry } from '@/lib/types'
 
-type View = 'home' | 'issue' | 'excuse' | 'feedback' | 'pinreq'
-
-interface PinReq { id: string; created_at: string; student?: { id: string; name: string }; teacher?: { id: string; name: string } }
+type View = 'home' | 'issue' | 'excuse' | 'feedback'
 
 function mins(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
@@ -40,7 +38,6 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [active, setActive] = useState<Checkout[]>([])
   const [queue, setQueue] = useState<QueueEntry[]>([])
-  const [pinReqs, setPinReqs] = useState<PinReq[]>([])
   const [, setTick] = useState(0)
 
   const [search, setSearch] = useState('')
@@ -63,28 +60,21 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const authHeaders = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token])
 
   const loadBoard = useCallback(async (sc: string) => {
-    const [sRes, tRes, cRes, qRes, pRes] = await Promise.all([
+    const [sRes, tRes, cRes, qRes] = await Promise.all([
       fetch(`/api/students?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/teachers?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/checkouts?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/queue?school=${sc}&ts=${Date.now()}`, { headers: authHeaders, cache: 'no-store' }),
-      fetch(`/api/teacher/pin-requests?school=${sc}&ts=${Date.now()}`, { headers: authHeaders, cache: 'no-store' }),
     ])
-    const [s, t, c, qd, pd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json(), pRes.json()])
+    const [s, t, c, qd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json()])
     if (Array.isArray(s)) setStudents(s)
     if (Array.isArray(t)) setTeachers(t)
     if (Array.isArray(c)) setActive(c)
     if (Array.isArray(qd)) setQueue(qd)
-    if (Array.isArray(pd)) setPinReqs(pd)
   }, [authHeaders])
 
   const leaveQueue = async (id: string) => {
     await fetch(`/api/queue?id=${id}`, { method: 'DELETE' })
-    loadBoard(school)
-  }
-
-  const resolvePin = async (id: string, action: 'approve' | 'deny') => {
-    await fetch('/api/teacher/pin-requests', { method: 'POST', headers: authHeaders, body: JSON.stringify({ id, action }) })
     loadBoard(school)
   }
 
@@ -197,7 +187,6 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
           <NavBtn id="home" label="Check Out & Board" icon={icons.board} />
           <NavBtn id="issue" label="Issue Pass" icon={icons.ticket} />
           <NavBtn id="excuse" label="Excuse Student" icon={icons.edit} />
-          <NavBtn id="pinreq" label="PIN Requests" icon={icons.key} badge={pinReqs.length} />
           <NavBtn id="feedback" label="Report / Request" icon={icons.message} />
           <div className="hidden h-px bg-gray-200 md:my-3 md:block" />
           <a href={`/reports?school=${school}`} className={linkCls}>{icons.chart} Reports</a>
@@ -328,35 +317,6 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
               <button onClick={logExcuse} className="w-full rounded-2xl bg-purple-800 py-3.5 text-base font-bold text-white hover:bg-purple-900">Log Excuse</button>
               {exMsg && <p className={`mt-2 text-sm font-medium ${exMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>{exMsg.text}</p>}
               <p className="mt-3 text-xs text-gray-500">Issues a pass the student can show their next teacher (via “Show My Pass”). It appears on the board and in reports, and doesn&apos;t count against bathroom limits.</p>
-            </div>
-          )}
-
-          {view === 'pinreq' && (
-            <div className="max-w-2xl">
-              <h2 className="mb-1 text-2xl font-bold text-gray-900">PIN Change Requests</h2>
-              <p className="mb-5 text-sm text-gray-500">{isAdmin ? 'Students who asked to change their PIN.' : 'Students who chose you to approve their new PIN.'} Approving applies the new PIN immediately.</p>
-              {pinReqs.length === 0 ? (
-                <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
-                  <div className="text-3xl text-gray-300">✓</div>
-                  <p className="mt-2 text-sm text-gray-500">No pending requests.</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {pinReqs.map((r) => (
-                    <div key={r.id} className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-gray-900">{r.student?.name ?? 'Student'}</p>
-                        <p className="text-xs text-gray-500">Requested {new Date(r.created_at).toLocaleString()}{isAdmin && r.teacher ? ` · to ${r.teacher.name}` : ''}</p>
-                        <p className="mt-1 text-xs text-gray-400">The new PIN is hidden — the student knows it. Only approve if you recognize this student.</p>
-                      </div>
-                      <div className="flex shrink-0 gap-2">
-                        <button onClick={() => resolvePin(r.id, 'deny')} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Deny</button>
-                        <button onClick={() => resolvePin(r.id, 'approve')} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Approve</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 

@@ -98,7 +98,7 @@ export default function StudentManager({ students, token, school, onRefresh }: P
   }
 
   const handleAdd = async () => {
-    if (!form.name || !form.pin || form.pin.length !== 4) { setError('Name and 4-digit PIN required'); return }
+    if (!form.name || !form.pin || form.pin.length !== 5) { setError('Name and 5-digit ID/PIN required'); return }
     setLoading(true); setError('')
     const res = await fetch('/api/admin/students', { method: 'POST', headers, body: JSON.stringify({ name: form.name, gender: form.gender, pin: form.pin, bathroom_limit_minutes: form.bathroomLimit, school }) })
     const data = await res.json()
@@ -132,11 +132,11 @@ export default function StudentManager({ students, token, school, onRefresh }: P
 
   // Direct PIN reset (for a student who forgot their PIN — no approval needed).
   const handleResetPin = async (id: string, name: string) => {
-    let pin = window.prompt(`Reset PIN for ${name}.\n\nEnter a new 4-digit PIN, or leave blank to generate a random one:`)
+    let pin = window.prompt(`Reset PIN for ${name}.\n\nEnter their 5-digit student ID (or a new 5-digit PIN), or leave blank to generate a random one:`)
     if (pin === null) return // cancelled
     pin = pin.trim()
-    if (pin === '') pin = String(Math.floor(Math.random() * 10000)).padStart(4, '0')
-    if (!/^\d{4}$/.test(pin)) { setError('PIN must be exactly 4 digits.'); return }
+    if (pin === '') pin = String(Math.floor(10000 + Math.random() * 90000))
+    if (!/^\d{5}$/.test(pin)) { setError('PIN must be exactly 5 digits.'); return }
     setError('')
     const res = await fetch(`/api/admin/students/${id}`, { method: 'PUT', headers, body: JSON.stringify({ pin }) })
     if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error ?? 'Reset failed'); return }
@@ -173,7 +173,7 @@ export default function StudentManager({ students, token, school, onRefresh }: P
             <option value="female">Female</option>
             <option value="male">Male</option>
           </select>
-          <input type="text" placeholder="4-digit PIN" maxLength={4} value={form.pin}
+          <input type="text" placeholder="5-digit ID / PIN" maxLength={5} value={form.pin}
             onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '') })} className={input} />
           <input type="number" min="0" placeholder="Bathroom min (optional)" value={form.bathroomLimit}
             onChange={(e) => setForm({ ...form, bathroomLimit: e.target.value })} className={input} />
@@ -194,7 +194,7 @@ export default function StudentManager({ students, token, school, onRefresh }: P
           name column (<span className="font-mono text-xs">LastFirst</span>, or separate{' '}
           <span className="font-mono text-xs">Last_Name</span> / <span className="font-mono text-xs">First_Name</span>)
           and a <span className="font-mono text-xs">Gender</span> column. Include a{' '}
-          <span className="font-mono text-xs">PIN</span> column to set PINs, or leave it out and a random 4-digit
+          <span className="font-mono text-xs">PIN</span> column to set PINs, or leave it out and a random 5-digit
           PIN will be generated for each student.
         </p>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-purple-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-purple-900">
@@ -274,7 +274,7 @@ export default function StudentManager({ students, token, school, onRefresh }: P
                         className="w-24 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-purple-700 focus:outline-none" />
                     </td>
                     <td className="px-4 py-3">
-                      <input type="text" placeholder="New PIN (blank = keep)" maxLength={4} value={editForm.pin}
+                      <input type="text" placeholder="New PIN (blank = keep)" maxLength={5} value={editForm.pin}
                         onChange={(e) => setEditForm({ ...editForm, pin: e.target.value.replace(/\D/g, '') })}
                         className="w-32 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-purple-700 focus:outline-none" />
                     </td>

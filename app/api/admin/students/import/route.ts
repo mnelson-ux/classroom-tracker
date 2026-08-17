@@ -19,7 +19,7 @@ function normalizeGender(raw?: string): 'male' | 'female' | null {
 }
 
 function randomPin(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString()
+  return Math.floor(10000 + Math.random() * 90000).toString()
 }
 
 export async function POST(request: Request) {
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     if (!name || !gender) { skipped.push(name || '(no name)'); continue }
 
     let pin = (raw.pin ?? '').toString().replace(/\D/g, '')
-    if (pin.length !== 4) { pin = randomPin(); generated.push({ name, pin }) }
+    if (pin.length !== 5) { pin = randomPin(); generated.push({ name, pin }) }
 
     rows.push({ name, gender, pin_hash: await bcrypt.hash(pin, 10) })
   }
