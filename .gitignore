@@ -21,3 +21,6 @@ yarn-error.log*
 # Vercel
 .vercel
 tsconfig.tsbuildinfo
+
+# Local audit/data exports — contain student PII, never commit
+exports/
