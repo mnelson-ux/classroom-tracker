@@ -38,6 +38,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [active, setActive] = useState<Checkout[]>([])
   const [queue, setQueue] = useState<QueueEntry[]>([])
+  const [nurse, setNurse] = useState<{ out: number; waiting: number }>({ out: 0, waiting: 0 })
   const [, setTick] = useState(0)
 
   const [search, setSearch] = useState('')
@@ -60,17 +61,19 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const authHeaders = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token])
 
   const loadBoard = useCallback(async (sc: string) => {
-    const [sRes, tRes, cRes, qRes] = await Promise.all([
+    const [sRes, tRes, cRes, qRes, nRes] = await Promise.all([
       fetch(`/api/students?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/teachers?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/checkouts?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/queue?school=${sc}&ts=${Date.now()}`, { headers: authHeaders, cache: 'no-store' }),
+      fetch(`/api/nurse?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
     ])
-    const [s, t, c, qd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json()])
+    const [s, t, c, qd, nd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json(), nRes.json()])
     if (Array.isArray(s)) setStudents(s)
     if (Array.isArray(t)) setTeachers(t)
     if (Array.isArray(c)) setActive(c)
     if (Array.isArray(qd)) setQueue(qd)
+    if (nd && typeof nd.out === 'number') setNurse({ out: nd.out, waiting: nd.waiting ?? 0 })
   }, [authHeaders])
 
   const leaveQueue = async (id: string) => {
@@ -235,6 +238,16 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                       </div>
                     )
                   })}
+                </div>
+              )}
+
+              {(nurse.out > 0 || nurse.waiting > 0) && (
+                <div className="mt-8 flex items-center gap-4 rounded-2xl border border-red-200 bg-red-50/60 p-5 shadow-sm">
+                  <span className="text-3xl">🩺</span>
+                  <div>
+                    <p className="font-bold text-gray-900">Nurse <span className="text-xs font-normal text-gray-500">(anonymous)</span></p>
+                    <p className="text-sm text-gray-600">{nurse.out} at the nurse{nurse.waiting > 0 ? ` · ${nurse.waiting} waiting` : ''}</p>
+                  </div>
                 </div>
               )}
 

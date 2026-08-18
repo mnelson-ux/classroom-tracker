@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import PinModal from './PinModal'
+import NursePass from './NursePass'
 import { nameMatches } from '@/lib/search'
 import type { Student, Teacher, Checkout } from '@/lib/types'
 
@@ -15,6 +16,7 @@ interface Props {
 const LOCATIONS = [
   { name: 'Bathroom', icon: '🚻' },
   { name: 'Office', icon: '🏢' },
+  { name: 'Nurse', icon: '🩺' },
   { name: 'Counselor', icon: '💬' },
 ]
 
@@ -36,6 +38,12 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
   const [pendingPin, setPendingPin] = useState('')
   const [queued, setQueued] = useState<{ location: string } | null>(null)
   const [queueReady, setQueueReady] = useState(false)
+
+  // Anonymous nurse flow (kept entirely separate — no student is ever recorded)
+  const [nursePass, setNursePass] = useState<{ token: string; name: string; school: string } | null>(null)
+  const [nurseFull, setNurseFull] = useState<{ position: number; pin: string; name: string; school: string } | null>(null)
+  const [nurseInline, setNurseInline] = useState<{ token: string; name: string; school: string } | null>(null)
+  const [nurseReady, setNurseReady] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim()
@@ -78,7 +86,73 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
     setShowPin(true)
   }
 
+  // Poll this device's own anonymous nurse-line status (token only, no identity).
+  useEffect(() => {
+    if (!nurseInline) return
+    let stop = false
+    const check = async () => {
+      try {
+        const r = await fetch(`/api/nurse?school=${nurseInline.school}&token=${nurseInline.token}&ts=${Date.now()}`, { cache: 'no-store' })
+        const d = await r.json()
+        if (stop) return
+        if (d.state === 'out') { setNursePass({ token: nurseInline.token, name: nurseInline.name, school: nurseInline.school }); setNurseInline(null) }
+        else if (!d.inLine) { setNurseInline(null); setNurseReady(false) }
+        else setNurseReady(!!d.ready)
+      } catch {}
+    }
+    check()
+    const id = setInterval(check, 7000)
+    return () => { stop = true; clearInterval(id) }
+  }, [nurseInline])
+
+  // Nurse: verify PIN, then either go (anonymous) or offer the anonymous line.
+  const submitNurse = async (pin: string): Promise<string | null> => {
+    const nm = selectedStudent?.name ?? ''
+    const sc = selectedStudent?.school ?? ''
+    const res = await fetch('/api/nurse', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'go', studentId, pin, school: sc }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      if (data.protectedTime) { flash(data.error, 'warn'); setShowPin(false); return null }
+      return data.error ?? 'Checkout failed'
+    }
+    if (data.state === 'out') { setNursePass({ token: data.token, name: nm, school: sc }); setShowPin(false); resetForm(); return null }
+    // Full — offer the anonymous line.
+    if (data.canQueue) { setNurseFull({ position: (data.waiting ?? 0) + 1, pin, name: nm, school: sc }); setShowPin(false); return null }
+    flash('The nurse line is full right now. Please try again soon.', 'warn'); setShowPin(false); return null
+  }
+
+  const joinNurse = async () => {
+    if (!nurseFull) return
+    const res = await fetch('/api/nurse', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'join', studentId, pin: nurseFull.pin, school: nurseFull.school }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setNurseFull(null); flash(data.error ?? 'Could not join the line', 'error'); return }
+    setNurseInline({ token: data.token, name: nurseFull.name, school: nurseFull.school }); setNurseReady(false); setNurseFull(null); resetForm()
+  }
+
+  const claimNurse = async () => {
+    if (!nurseInline) return
+    const res = await fetch('/api/nurse', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'claim', token: nurseInline.token, school: nurseInline.school }),
+    })
+    const data = await res.json()
+    if (data.state === 'out') { setNursePass({ token: nurseInline.token, name: nurseInline.name, school: nurseInline.school }); setNurseInline(null) }
+    else flash("It's not your turn just yet — hang tight.", 'warn')
+  }
+
+  const leaveNurseLine = async () => {
+    if (nurseInline) await fetch('/api/nurse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'leave', token: nurseInline.token, school: nurseInline.school }) })
+    setNurseInline(null); setNurseReady(false); resetForm()
+  }
+
   const submitCheckout = async (pin: string): Promise<string | null> => {
+    if (location === 'Nurse') return submitNurse(pin)
     const t = teachers.find((t) => t.id === teacherId)
     const res = await fetch('/api/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -232,6 +306,48 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
             <button onClick={leaveLine} className="mt-3 w-full rounded-2xl border border-gray-300 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50">Leave the line</button>
           </div>
         </div>
+      )}
+
+      {/* Nurse is full → join the anonymous line */}
+      {nurseFull && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
+            <div className="mb-2 text-4xl">⏳</div>
+            <h2 className="mb-1 text-lg font-bold text-gray-900">The nurse is busy</h2>
+            <p className="mb-5 text-sm text-gray-500">Want to wait in line? You&apos;d be <span className="font-bold text-gray-900">#{nurseFull.position}</span>. This screen will tell you when it&apos;s your turn — your visit stays anonymous.</p>
+            <div className="flex gap-3">
+              <button onClick={() => { setNurseFull(null); resetForm() }} className="flex-1 rounded-xl border border-gray-300 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">No thanks</button>
+              <button onClick={joinNurse} className="flex-1 rounded-xl bg-red-500 py-3 text-sm font-semibold text-white hover:bg-red-600">Join the line</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Private "in line for the nurse" status — token only, no identity */}
+      {nurseInline && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl">
+            {nurseReady ? (
+              <>
+                <div className="mb-3 text-5xl">✅</div>
+                <h2 className="mb-1 text-2xl font-bold text-emerald-700">It&apos;s your turn!</h2>
+                <p className="mb-6 text-sm text-gray-600">The nurse is ready for you. Tap below to go.</p>
+                <button onClick={claimNurse} className="w-full rounded-2xl bg-gradient-to-r from-red-500 to-rose-500 py-4 text-lg font-bold text-white shadow-sm hover:from-red-600 hover:to-rose-600">Go to the Nurse</button>
+              </>
+            ) : (
+              <>
+                <div className="mb-3 text-5xl">⏳</div>
+                <h2 className="mb-1 text-2xl font-bold text-gray-900">You&apos;re in line</h2>
+                <p className="mb-6 text-sm text-gray-600">The nurse is busy. Hang tight — this screen will let you know the moment it&apos;s your turn.</p>
+              </>
+            )}
+            <button onClick={leaveNurseLine} className="mt-3 w-full rounded-2xl border border-gray-300 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50">Leave the line</button>
+          </div>
+        </div>
+      )}
+
+      {nursePass && (
+        <NursePass token={nursePass.token} name={nursePass.name} school={nursePass.school} onClose={() => setNursePass(null)} />
       )}
 
       {limitVideo && (

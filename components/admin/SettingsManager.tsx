@@ -113,7 +113,7 @@ export default function SettingsManager({ settings, token, school, onRefresh }: 
   const groups = [
     { title: 'Display', keys: ['page_title', 'girls_section_title', 'boys_section_title'] },
     { title: 'Bathroom Limits', keys: ['max_bathroom_per_room_boys', 'max_bathroom_per_room_girls', 'max_bathroom_total_boys', 'max_bathroom_total_girls', 'time_limit_minutes'] },
-    { title: 'Waiting Line', keys: ['queue_max'] },
+    { title: 'Nurse & Waiting Line', keys: ['nurse_capacity', 'queue_max'] },
     { title: 'Locations', keys: ['locations'] },
   ]
 
