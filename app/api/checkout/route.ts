@@ -8,7 +8,7 @@ import { isUuid } from '@/lib/validate'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
-  const { studentId, teacherId, roomId, location, pin, healthSymptoms, healthNote, healthInitials } = await request.json()
+  const { studentId, teacherId, roomId, location, pin } = await request.json()
 
   if (!studentId || !teacherId || !location || !pin) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -195,18 +195,6 @@ export async function POST(request: Request) {
     }
   }
 
-  // ---- NURSE ----
-  if (location === 'Nurse') {
-    const capacity = parseInt(settings.nurse_capacity || '2')
-    const { data: nurseOut } = await supabaseAdmin
-      .from('checkouts').select('id').eq('is_checked_out', true).eq('location', 'Nurse').eq('school', student.school)
-    const decision = await queueDecision('Nurse', null, capacity, (nurseOut ?? []).length)
-    if (!decision.allow) return NextResponse.json(decision.resp, { status: 409 })
-  }
-
-  // Normalize the health form (only meaningful for the Nurse).
-  const symptoms = Array.isArray(healthSymptoms) ? healthSymptoms.filter(Boolean).join(', ') : (typeof healthSymptoms === 'string' ? healthSymptoms : null)
-
   // Create checkout
   const { data: checkout, error } = await supabaseAdmin
     .from('checkouts')
@@ -218,9 +206,6 @@ export async function POST(request: Request) {
       school: student.school,
       check_out_time: new Date().toISOString(),
       is_checked_out: true,
-      health_symptoms: location === 'Nurse' ? (symptoms || null) : null,
-      health_note: location === 'Nurse' ? (healthNote?.trim() || null) : null,
-      health_initials: location === 'Nurse' ? (healthInitials?.trim() || null) : null,
     })
     .select('*')
     .single()

@@ -15,68 +15,6 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 }
 
-const HEALTH_SYMPTOMS = ['Stomach Ache', 'Sore Throat', 'Head Ache', 'Hurt Muscle', 'Hurt Body Part', 'Bleeding']
-
-// A miniature of the paper Health Pass, nested inside the full-screen pass.
-function HealthPassCard({ name, symptoms, note, initials, checkOutTime }: {
-  name: string
-  symptoms: string | null
-  note: string | null
-  initials: string | null
-  checkOutTime: string
-}) {
-  const checked = new Set((symptoms ?? '').split(',').map((s) => s.trim()).filter(Boolean))
-  const first = name.includes(',') ? name.split(',')[1]?.trim() ?? name : name
-  const last = name.includes(',') ? name.split(',')[0]?.trim() : ''
-  const display = last ? `${first} ${last}` : first
-  const date = new Date(checkOutTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-
-  return (
-    <div className="w-full max-w-sm -rotate-1 rounded-2xl bg-orange-200 p-5 text-left shadow-2xl ring-1 ring-black/10">
-      {/* Header */}
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-xl font-extrabold tracking-tight text-gray-900">Health Pass</h3>
-        <span className="text-2xl" role="img" aria-label="bandage">🩹</span>
-      </div>
-
-      {/* Name / date / time */}
-      <div className="mb-3 space-y-0.5 text-sm text-gray-900">
-        <p><span className="font-semibold">Name:</span> {display}</p>
-        <p className="flex gap-4">
-          <span><span className="font-semibold">Date:</span> {date}</span>
-          <span><span className="font-semibold">Time:</span> {formatTime(checkOutTime)}</span>
-        </p>
-      </div>
-
-      {/* Checklist */}
-      <div className="mb-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
-        {HEALTH_SYMPTOMS.map((sym) => {
-          const on = checked.has(sym)
-          return (
-            <div key={sym} className={`flex items-center gap-2 text-sm ${on ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
-              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 text-xs ${on ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-500 bg-orange-100'}`}>{on ? '✓' : ''}</span>
-              {sym}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Other note */}
-      {note && (
-        <div className="mb-3 rounded-xl border-2 border-gray-700 bg-orange-100 p-2.5">
-          <p className="text-xs font-semibold text-gray-700">Other:</p>
-          <p className="text-sm text-gray-900">{note}</p>
-        </div>
-      )}
-
-      {/* Teacher initials */}
-      <p className="text-sm text-gray-900">
-        <span className="font-semibold">Teacher Initials:</span>{' '}
-        <span className="font-bold uppercase underline decoration-gray-500 underline-offset-4">{initials ?? '—'}</span>
-      </p>
-    </div>
-  )
-}
 
 function formatDate(d: Date) {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
@@ -116,7 +54,6 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
   const bgByLocation: Record<string, string> = {
     Bathroom: 'bg-yellow-500',
     Office: 'bg-emerald-500',
-    Nurse: 'bg-red-500',
     Counselor: 'bg-teal-500',
   }
   const staffIssued = checkout.pass_type === 'teacher_issued' || checkout.pass_type === 'excuse'
@@ -165,17 +102,6 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
           <h1 className="text-5xl font-bold text-white sm:text-7xl">{firstName}</h1>
           <p className="mt-2 text-xl font-medium text-white/80">{student.name.split(',')[0]}</p>
         </div>
-
-        {/* Nurse Health Pass — a mini form card nested inside the pass */}
-        {checkout.location === 'Nurse' && (checkout.health_symptoms || checkout.health_note) && (
-          <HealthPassCard
-            name={student.name}
-            symptoms={checkout.health_symptoms}
-            note={checkout.health_note}
-            initials={checkout.health_initials}
-            checkOutTime={checkout.check_out_time}
-          />
-        )}
 
         {/* Big date — readable from across the room */}
         <p className="text-3xl font-bold text-white sm:text-5xl">{today}</p>

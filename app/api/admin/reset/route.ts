@@ -16,7 +16,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   max_bathroom_total_boys: '2',
   max_bathroom_total_girls: '2',
   time_limit_minutes: '10',
-  locations: 'Bathroom,Office,Nurse',
+  locations: 'Bathroom,Office',
 }
 
 export async function POST(request: Request) {

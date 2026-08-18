@@ -6,7 +6,7 @@ function firstName(name: string) {
   return name.includes(',') ? name.split(',')[1]?.trim() ?? name : name
 }
 
-// Shows who's waiting for the Bathroom / Nurse. The person at the top of each
+// Shows who's waiting for the Bathroom. The person at the top of each
 // list is "up next".
 // - anonymous (public kiosk): position numbers only, no student names (privacy).
 // - named (staff board): shows names + a Leave button to manage the line.
@@ -14,7 +14,7 @@ export default function QueuePanel({ queue, onLeave, anonymous = false }: { queu
   if (!queue || queue.length === 0) return null
 
   const groups: { key: string; label: string; items: QueueEntry[] }[] = []
-  for (const label of ['Bathroom', 'Nurse']) {
+  for (const label of ['Bathroom']) {
     for (const g of ['female', 'male', null]) {
       const items = queue.filter((q) => q.location === label && (label === 'Bathroom' ? q.gender === g : g === null))
       if (items.length === 0) continue

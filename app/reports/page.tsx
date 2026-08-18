@@ -97,7 +97,7 @@ export default function ReportsPage() {
   }
 
   // Always show the standard locations, plus any others that appear in the data.
-  const STANDARD = ['Bathroom', 'Office', 'Nurse']
+  const STANDARD = ['Bathroom', 'Office']
   const tabs = ['Total', ...STANDARD, ...locations.filter((l) => !STANDARD.includes(l))]
 
   // When searching for a student, filter each teacher's students and hide teachers with no match.
@@ -112,7 +112,7 @@ export default function ReportsPage() {
     ? roster.filter((s) => nameMatches(s.student_name, studentSearch))
     : []
 
-  const locationRows = ['Bathroom', 'Office', 'Nurse', ...locations.filter((l) => !STANDARD.includes(l))]
+  const locationRows = ['Bathroom', 'Office', ...locations.filter((l) => !STANDARD.includes(l))]
 
   return (
     <div className="min-h-screen">
