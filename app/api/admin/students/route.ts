@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 export async function GET(request: Request) {
   if (!await verifyAdminSession(getTokenFromRequest(request))) {
@@ -41,5 +42,6 @@ export async function POST(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await logAudit(request, { action: 'student.create', entity: 'student', entityId: data?.id, detail: data?.name, school: data?.school })
   return NextResponse.json(data, { status: 201 })
 }

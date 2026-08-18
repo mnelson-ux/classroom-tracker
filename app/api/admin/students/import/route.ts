@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,5 +59,6 @@ export async function POST(request: Request) {
     inserted = data?.length ?? 0
   }
 
+  if (inserted > 0) await logAudit(request, { action: 'student.import', entity: 'student', detail: `Imported ${inserted} student(s)`, school: targetSchool })
   return NextResponse.json({ inserted, skippedCount: skipped.length, skipped, generated })
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   if (!await verifyAdminSession(getTokenFromRequest(request))) {
@@ -28,6 +29,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const changed = Object.keys(update).map((k) => (k === 'password_hash' ? 'password' : k)).join(', ')
+  await logAudit(request, { action: 'teacher.update', entity: 'teacher', entityId: params.id, detail: `${data?.name ?? ''} — changed: ${changed}` })
   return NextResponse.json(data)
 }
 
@@ -51,5 +54,6 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+  await logAudit(request, { action: 'teacher.delete', entity: 'teacher', entityId: params.id })
   return NextResponse.json({ success: true })
 }

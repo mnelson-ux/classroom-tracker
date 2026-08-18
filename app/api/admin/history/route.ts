@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 // Never cache or pre-render this route — always query the database live.
 export const dynamic = 'force-dynamic'
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await logAudit(request, { action: 'history.access', entity: 'checkouts', detail: `Viewed/exported ${data?.length ?? 0} history record(s)`, school })
   return NextResponse.json(data ?? [], {
     headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
   })

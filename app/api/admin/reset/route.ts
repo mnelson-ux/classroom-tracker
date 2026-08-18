@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
 import { runAutoResetForSchool } from '@/lib/autoReset'
+import { logAudit } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
       .eq('school', school)
       .eq('is_checked_out', true)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await logAudit(request, { action: 'reset.clear_board', entity: 'checkouts', detail: `Cleared ${count ?? 0} active checkout(s)`, school })
     return NextResponse.json({ message: `Cleared ${count ?? 0} student(s) from the currently-out list.` })
   }
 
@@ -44,6 +46,7 @@ export async function POST(request: Request) {
       .delete({ count: 'exact' })
       .eq('school', school)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await logAudit(request, { action: 'reset.delete_history', entity: 'checkouts', detail: `Deleted ${count ?? 0} checkout record(s)`, school })
     return NextResponse.json({ message: `Deleted ${count ?? 0} checkout record(s).` })
   }
 
@@ -64,6 +67,7 @@ export async function POST(request: Request) {
       if (error) errors.push(`${key}: ${error.message}`)
     }
     if (errors.length) return NextResponse.json({ error: errors.join(', ') }, { status: 500 })
+    await logAudit(request, { action: 'reset.settings', entity: 'settings', detail: 'Restored settings to defaults', school })
     return NextResponse.json({ message: 'Settings restored to defaults.' })
   }
 

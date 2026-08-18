@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifySession, getTokenFromRequest } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 // Any logged-in staff member (teacher or admin) may view reports.
 export const dynamic = 'force-dynamic'
@@ -101,6 +102,7 @@ export async function GET(request: Request) {
 
   const students = Object.values(studentTotals).sort((a, b) => a.student_name.localeCompare(b.student_name))
 
+  await logAudit(request, { action: 'reports.access', entity: 'checkouts', detail: 'Viewed student reports', school })
   return NextResponse.json({ teachers: result, students, locations: Array.from(locationSet).sort() }, {
     headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
   })

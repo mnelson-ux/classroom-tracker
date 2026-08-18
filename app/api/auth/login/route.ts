@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { createSession } from '@/lib/auth'
 import { checkThrottle, registerFailure, clearThrottle, lockMessage, LOGIN_THROTTLE } from '@/lib/throttle'
+import { logAudit } from '@/lib/audit'
 
 export async function POST(request: Request) {
   const { username, password, userType } = await request.json()
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
     }
 
     await clearThrottle(throttleKey)
+    await logAudit(request, { action: 'login', actor: { type: 'admin', id: admin.id, name: username } })
     return NextResponse.json({ token, userType: 'admin', userName: username })
   }
 
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
     }
 
     await clearThrottle(throttleKey)
+    await logAudit(request, { action: 'login', school: teacher.school, actor: { type: 'teacher', id: teacher.id, name: teacher.name } })
     return NextResponse.json({ token, userType: 'teacher', userName: teacher.name, userId: teacher.id })
   }
 

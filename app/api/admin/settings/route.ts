@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminSession, getTokenFromRequest } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 export async function GET(request: Request) {
   if (!await verifyAdminSession(getTokenFromRequest(request))) {
@@ -40,5 +41,6 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: errors.join(', ') }, { status: 500 })
   }
 
+  await logAudit(request, { action: 'settings.update', entity: 'settings', detail: updates.map((u) => u.key).join(', '), school })
   return NextResponse.json({ success: true })
 }
