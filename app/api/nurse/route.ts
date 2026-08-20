@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { checkThrottle, registerFailure, clearThrottle, lockMessage, PIN_THROTTLE } from '@/lib/throttle'
 import { getActiveProtectedWindow } from '@/lib/protected'
 import { isUuid } from '@/lib/validate'
+import { verifySession, getTokenFromRequest } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -49,11 +50,23 @@ export async function POST(request: Request) {
   const { action, school } = body
   if (!school) return NextResponse.json({ error: 'Missing school' }, { status: 400 })
 
+  // Is a signed-in staff member making this request? (teachers/admins skip the PIN)
+  const staff = !!(await verifySession(getTokenFromRequest(request)))
+
   // Close / leave — identified only by the device's token.
   if (action === 'checkin' || action === 'leave') {
     if (!body.token) return NextResponse.json({ error: 'Missing token' }, { status: 400 })
     await supabaseAdmin.from('nurse_visits').delete().eq('token', body.token)
     return NextResponse.json({ success: true }, noStore)
+  }
+
+  // Staff check one anonymous nurse visit back in (oldest first).
+  if (action === 'checkin_one') {
+    if (!staff) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { out } = await rowsFor(school)
+    if (out[0]) await supabaseAdmin.from('nurse_visits').delete().eq('id', out[0].id)
+    const after = await rowsFor(school)
+    return NextResponse.json({ out: after.out.length, waiting: after.waiting.length }, noStore)
   }
 
   // Claim an open spot when it's this device's turn.
@@ -70,22 +83,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ notReady: true, position: idx >= 0 ? idx + 1 : null }, noStore)
   }
 
-  // go / join both prove the student is real (PIN) but store NOTHING about them.
-  const { studentId, pin } = body
-  if (!isUuid(studentId) || !pin) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+  // Kiosk (student) path: prove the student is real (PIN) but store NOTHING about
+  // them. Staff-initiated passes skip this — a teacher's request is its own proof,
+  // and it stays just as anonymous (still no student is recorded).
+  if (!staff) {
+    const { studentId, pin } = body
+    if (!isUuid(studentId) || !pin) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
-  const { data: student } = await supabaseAdmin.from('students').select('id, school, pin_hash').eq('id', studentId).eq('active', true).single()
-  if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 })
+    const { data: student } = await supabaseAdmin.from('students').select('id, school, pin_hash').eq('id', studentId).eq('active', true).single()
+    if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 })
 
-  const throttleKey = `pin:${studentId}`
-  const lock = await checkThrottle(throttleKey)
-  if (lock.locked) return NextResponse.json({ error: lockMessage(lock.retryAfterSec) }, { status: 429 })
-  const ok = await bcrypt.compare(pin, student.pin_hash)
-  if (!ok) { await registerFailure(throttleKey, PIN_THROTTLE); return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 }) }
-  await clearThrottle(throttleKey)
+    const throttleKey = `pin:${studentId}`
+    const lock = await checkThrottle(throttleKey)
+    if (lock.locked) return NextResponse.json({ error: lockMessage(lock.retryAfterSec) }, { status: 429 })
+    const ok = await bcrypt.compare(pin, student.pin_hash)
+    if (!ok) { await registerFailure(throttleKey, PIN_THROTTLE); return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 }) }
+    await clearThrottle(throttleKey)
 
-  const active = await getActiveProtectedWindow(school)
-  if (active) return NextResponse.json({ error: `Passes are paused right now${active.label ? ` (${active.label})` : ''}.`, protectedTime: true }, { status: 409 })
+    const active = await getActiveProtectedWindow(school)
+    if (active) return NextResponse.json({ error: `Passes are paused right now${active.label ? ` (${active.label})` : ''}.`, protectedTime: true }, { status: 409 })
+  }
 
   const { capacity, queueMax } = await limits(school)
   const { out, waiting } = await rowsFor(school)

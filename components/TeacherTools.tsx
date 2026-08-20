@@ -5,6 +5,7 @@ import { nameMatches } from '@/lib/search'
 import { SCHOOLS, schoolLabel } from '@/lib/schools'
 import CheckoutPanel from '@/components/CheckoutPanel'
 import QueuePanel from '@/components/QueuePanel'
+import NursePass from '@/components/NursePass'
 import type { Student, Teacher, Checkout, QueueEntry } from '@/lib/types'
 
 type View = 'home' | 'issue' | 'excuse' | 'feedback'
@@ -38,7 +39,10 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [active, setActive] = useState<Checkout[]>([])
   const [queue, setQueue] = useState<QueueEntry[]>([])
-  const [nurse, setNurse] = useState<{ out: number; waiting: number }>({ out: 0, waiting: 0 })
+  const [nurseBySchool, setNurseBySchool] = useState<Record<string, { out: number; waiting: number }>>({})
+  const [nurseName, setNurseName] = useState('')
+  const [nursePass, setNursePass] = useState<{ token: string; school: string; name: string } | null>(null)
+  const [nurseMsg, setNurseMsg] = useState<string | null>(null)
   const [, setTick] = useState(0)
 
   const [search, setSearch] = useState('')
@@ -61,20 +65,41 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const authHeaders = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token])
 
   const loadBoard = useCallback(async (sc: string) => {
-    const [sRes, tRes, cRes, qRes, nRes] = await Promise.all([
+    const admin = !!me?.isAdmin
+    const [sRes, tRes, cRes, qRes] = await Promise.all([
       fetch(`/api/students?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/teachers?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
-      fetch(`/api/checkouts?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
+      // Admins see the whole district on the board; teachers see their own school.
+      fetch(admin ? `/api/checkouts?ts=${Date.now()}` : `/api/checkouts?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/queue?school=${sc}&ts=${Date.now()}`, { headers: authHeaders, cache: 'no-store' }),
-      fetch(`/api/nurse?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
     ])
-    const [s, t, c, qd, nd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json(), nRes.json()])
+    const [s, t, c, qd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json()])
     if (Array.isArray(s)) setStudents(s)
     if (Array.isArray(t)) setTeachers(t)
     if (Array.isArray(c)) setActive(c)
     if (Array.isArray(qd)) setQueue(qd)
-    if (nd && typeof nd.out === 'number') setNurse({ out: nd.out, waiting: nd.waiting ?? 0 })
-  }, [authHeaders])
+
+    // Anonymous nurse counts — both schools for an admin, just this one otherwise.
+    const schools = admin ? SCHOOLS.map((x) => x.id) : [sc]
+    const results = await Promise.all(schools.map((x) => fetch(`/api/nurse?school=${x}&ts=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null)))
+    const map: Record<string, { out: number; waiting: number }> = {}
+    schools.forEach((x, i) => { const d = results[i]; if (d && typeof d.out === 'number') map[x] = { out: d.out, waiting: d.waiting ?? 0 } })
+    setNurseBySchool(map)
+  }, [authHeaders, me])
+
+  const sendToNurse = async () => {
+    setNurseMsg(null)
+    const res = await fetch('/api/nurse', { method: 'POST', headers: authHeaders, body: JSON.stringify({ action: 'go', school }) })
+    const data = await res.json()
+    if (!res.ok) { setNurseMsg(data.error ?? 'Could not create the pass'); return }
+    if (data.state === 'out') { setNursePass({ token: data.token, school, name: nurseName.trim() || 'Student' }); setNurseName(''); loadBoard(school) }
+    else { setNurseMsg(`The nurse is at capacity right now (${data.waiting ?? 0} waiting). Please try again shortly.`) }
+  }
+
+  const checkInNurse = async (sc: string) => {
+    await fetch('/api/nurse', { method: 'POST', headers: authHeaders, body: JSON.stringify({ action: 'checkin_one', school: sc }) })
+    loadBoard(school)
+  }
 
   const leaveQueue = async (id: string) => {
     await fetch(`/api/queue?id=${id}`, { method: 'DELETE' })
@@ -222,7 +247,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                         <div className="flex items-start justify-between">
                           <div className="min-w-0">
                             <p className="truncate font-semibold text-gray-900">{s?.name ?? 'Student'}</p>
-                            <p className="truncate text-xs text-purple-700">{c.location}</p>
+                            <p className="truncate text-xs text-purple-700">{c.location}{isAdmin && c.school ? ` · ${String(c.school).toUpperCase()}` : ''}</p>
                           </div>
                           <span className="ml-2 shrink-0 text-sm font-bold tabular-nums text-gray-700">{out}m</span>
                         </div>
@@ -241,15 +266,32 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                 </div>
               )}
 
-              {(nurse.out > 0 || nurse.waiting > 0) && (
-                <div className="mt-8 flex items-center gap-4 rounded-2xl border border-red-200 bg-red-50/60 p-5 shadow-sm">
+              <div className="mt-8 rounded-2xl border border-red-200 bg-red-50/60 p-5 shadow-sm">
+                <div className="flex items-center gap-3">
                   <span className="text-3xl">🩺</span>
                   <div>
-                    <p className="font-bold text-gray-900">Nurse <span className="text-xs font-normal text-gray-500">(anonymous)</span></p>
-                    <p className="text-sm text-gray-600">{nurse.out} at the nurse{nurse.waiting > 0 ? ` · ${nurse.waiting} waiting` : ''}</p>
+                    <p className="font-bold text-gray-900">Nurse <span className="text-xs font-normal text-gray-500">· anonymous, not tracked</span></p>
+                    <p className="text-sm text-gray-600">A nurse pass is not linked to any student and isn&apos;t recorded.</p>
                   </div>
                 </div>
-              )}
+                <div className="mt-4 flex flex-col gap-2">
+                  {(isAdmin ? SCHOOLS.map((x) => x.id) : [school]).map((sc) => {
+                    const n = nurseBySchool[sc] ?? { out: 0, waiting: 0 }
+                    return (
+                      <div key={sc} className="flex items-center justify-between rounded-xl border border-red-100 bg-white px-3 py-2 text-sm">
+                        <span className="font-semibold text-gray-800">{isAdmin ? `${schoolLabel(sc)}: ` : 'At the nurse: '}{n.out}{n.waiting > 0 ? ` · ${n.waiting} waiting` : ''}</span>
+                        {n.out > 0 && <button onClick={() => checkInNurse(sc)} className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Check one in</button>}
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <input value={nurseName} onChange={(e) => setNurseName(e.target.value)} placeholder="Student first name (optional — not saved)"
+                    className="min-w-[12rem] flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-red-400 focus:outline-none" />
+                  <button onClick={sendToNurse} className="rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600">Send to Nurse{canSwitch ? ` (${schoolLabel(school)})` : ''}</button>
+                </div>
+                {nurseMsg && <p className="mt-2 text-sm font-medium text-red-600">{nurseMsg}</p>}
+              </div>
 
               {queue.length > 0 && (
                 <div className="mt-8">
@@ -350,6 +392,11 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
           )}
         </div>
       </main>
+
+      {nursePass && (
+        <NursePass token={nursePass.token} name={nursePass.name} school={nursePass.school}
+          onClose={() => { setNursePass(null); loadBoard(school) }} />
+      )}
     </div>
   )
 }
