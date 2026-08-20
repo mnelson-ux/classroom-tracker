@@ -40,14 +40,12 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [active, setActive] = useState<Checkout[]>([])
   const [queue, setQueue] = useState<QueueEntry[]>([])
   const [nurseBySchool, setNurseBySchool] = useState<Record<string, { out: number; waiting: number }>>({})
-  const [nurseName, setNurseName] = useState('')
   const [nursePass, setNursePass] = useState<{ token: string; school: string; name: string } | null>(null)
-  const [nurseMsg, setNurseMsg] = useState<string | null>(null)
   const [, setTick] = useState(0)
 
   const [search, setSearch] = useState('')
   const [studentId, setStudentId] = useState('')
-  const [dest, setDest] = useState<{ mode: 'location' | 'teacher' | 'custom'; location?: string; teacherId?: string; reason?: string }>({ mode: 'location', location: 'Bathroom' })
+  const [dest, setDest] = useState<{ mode: 'location' | 'teacher' | 'custom' | 'nurse'; location?: string; teacherId?: string; reason?: string }>({ mode: 'location', location: 'Bathroom' })
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
   const [exStudentId, setExStudentId] = useState('')
@@ -88,18 +86,15 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   }, [authHeaders, me])
 
   const sendToNurse = async () => {
-    setNurseMsg(null)
+    setMsg(null)
+    const name = students.find((s) => s.id === studentId)?.name
     const res = await fetch('/api/nurse', { method: 'POST', headers: authHeaders, body: JSON.stringify({ action: 'go', school }) })
     const data = await res.json()
-    if (!res.ok) { setNurseMsg(data.error ?? 'Could not create the pass'); return }
-    if (data.state === 'out') { setNursePass({ token: data.token, school, name: nurseName.trim() || 'Student' }); setNurseName(''); loadBoard(school) }
-    else { setNurseMsg(`The nurse is at capacity right now (${data.waiting ?? 0} waiting). Please try again shortly.`) }
+    if (!res.ok) { setMsg({ text: data.error ?? 'Could not create the pass', ok: false }); return }
+    if (data.state === 'out') { setNursePass({ token: data.token, school, name: name?.trim() || 'Student' }); setStudentId(''); setSearch(''); loadBoard(school) }
+    else setMsg({ text: `The nurse is at capacity right now (${data.waiting ?? 0} waiting). Please try again shortly.`, ok: false })
   }
 
-  const checkInNurse = async (sc: string) => {
-    await fetch('/api/nurse', { method: 'POST', headers: authHeaders, body: JSON.stringify({ action: 'checkin_one', school: sc }) })
-    loadBoard(school)
-  }
 
   const leaveQueue = async (id: string) => {
     await fetch(`/api/queue?id=${id}`, { method: 'DELETE' })
@@ -266,32 +261,24 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                 </div>
               )}
 
-              <div className="mt-8 rounded-2xl border border-red-200 bg-red-50/60 p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">🩺</span>
-                  <div>
-                    <p className="font-bold text-gray-900">Nurse <span className="text-xs font-normal text-gray-500">· anonymous, not tracked</span></p>
-                    <p className="text-sm text-gray-600">A nurse pass is not linked to any student and isn&apos;t recorded.</p>
+              {(() => {
+                const schools = isAdmin ? SCHOOLS.map((x) => x.id) : [school]
+                const anyNurse = schools.some((sc) => (nurseBySchool[sc]?.out || 0) > 0 || (nurseBySchool[sc]?.waiting || 0) > 0)
+                if (!anyNurse) return null
+                return (
+                  <div className="mt-8 flex items-start gap-4 rounded-2xl border border-red-200 bg-red-50/60 p-5 shadow-sm">
+                    <span className="text-3xl">🩺</span>
+                    <div>
+                      <p className="font-bold text-gray-900">Nurse <span className="text-xs font-normal text-gray-500">· anonymous</span></p>
+                      {schools.map((sc) => {
+                        const n = nurseBySchool[sc] ?? { out: 0, waiting: 0 }
+                        if (n.out === 0 && n.waiting === 0) return null
+                        return <p key={sc} className="text-sm text-gray-600">{isAdmin ? `${schoolLabel(sc)}: ` : 'At the nurse: '}{n.out}{n.waiting > 0 ? ` · ${n.waiting} waiting` : ''}</p>
+                      })}
+                    </div>
                   </div>
-                </div>
-                <div className="mt-4 flex flex-col gap-2">
-                  {(isAdmin ? SCHOOLS.map((x) => x.id) : [school]).map((sc) => {
-                    const n = nurseBySchool[sc] ?? { out: 0, waiting: 0 }
-                    return (
-                      <div key={sc} className="flex items-center justify-between rounded-xl border border-red-100 bg-white px-3 py-2 text-sm">
-                        <span className="font-semibold text-gray-800">{isAdmin ? `${schoolLabel(sc)}: ` : 'At the nurse: '}{n.out}{n.waiting > 0 ? ` · ${n.waiting} waiting` : ''}</span>
-                        {n.out > 0 && <button onClick={() => checkInNurse(sc)} className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Check one in</button>}
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <input value={nurseName} onChange={(e) => setNurseName(e.target.value)} placeholder="Student first name (optional — not saved)"
-                    className="min-w-[12rem] flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-red-400 focus:outline-none" />
-                  <button onClick={sendToNurse} className="rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600">Send to Nurse{canSwitch ? ` (${schoolLabel(school)})` : ''}</button>
-                </div>
-                {nurseMsg && <p className="mt-2 text-sm font-medium text-red-600">{nurseMsg}</p>}
-              </div>
+                )
+              })()}
 
               {queue.length > 0 && (
                 <div className="mt-8">
@@ -338,6 +325,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                 ))}
                 <button onClick={() => setDest({ mode: 'teacher' })} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${dest.mode === 'teacher' ? 'bg-purple-800 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>Another teacher</button>
                 <button onClick={() => setDest({ mode: 'custom' })} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${dest.mode === 'custom' ? 'bg-purple-800 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>Custom</button>
+                <button onClick={() => setDest({ mode: 'nurse' })} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${dest.mode === 'nurse' ? 'bg-red-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>🩺 Nurse</button>
               </div>
               {dest.mode === 'teacher' && (
                 <select value={dest.teacherId ?? ''} onChange={(e) => setDest({ mode: 'teacher', teacherId: e.target.value })} className={`mb-4 ${inputCls}`}>
@@ -348,8 +336,17 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
               {dest.mode === 'custom' && (
                 <input value={dest.reason ?? ''} onChange={(e) => setDest({ mode: 'custom', reason: e.target.value })} placeholder="Reason (e.g. Counselor, Locker)" className={`mb-4 ${inputCls}`} />
               )}
+              {dest.mode === 'nurse' && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                  A nurse pass is <b>anonymous</b> — the student is <b>not recorded</b> anywhere. The name only shows on the pass so it can be carried.
+                </div>
+              )}
 
-              <button onClick={issuePass} className="mt-2 w-full rounded-2xl bg-purple-800 py-3.5 text-base font-bold text-white hover:bg-purple-900">Issue Pass</button>
+              {dest.mode === 'nurse' ? (
+                <button onClick={sendToNurse} className="mt-2 w-full rounded-2xl bg-red-500 py-3.5 text-base font-bold text-white hover:bg-red-600">Give Nurse Pass{canSwitch ? ` (${schoolLabel(school)})` : ''}</button>
+              ) : (
+                <button onClick={issuePass} className="mt-2 w-full rounded-2xl bg-purple-800 py-3.5 text-base font-bold text-white hover:bg-purple-900">Issue Pass</button>
+              )}
               {msg && <p className={`mt-2 text-sm font-medium ${msg.ok ? 'text-emerald-600' : 'text-red-500'}`}>{msg.text}</p>}
             </div>
           )}
