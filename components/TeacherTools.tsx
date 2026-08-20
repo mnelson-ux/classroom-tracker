@@ -174,6 +174,32 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const selName = students.find((s) => s.id === studentId)?.name
   const inputCls = 'w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 focus:border-purple-700 focus:outline-none'
 
+  const OutCard = (c: Checkout) => {
+    const out = mins(c.check_out_time)
+    const color = out >= 10 ? 'border-red-300 bg-red-50' : out >= 6 ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-white'
+    const s = c.student as { name?: string } | undefined
+    return (
+      <div key={c.id} className={`rounded-2xl border p-4 shadow-sm ${color}`}>
+        <div className="flex items-start justify-between">
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-gray-900">{s?.name ?? 'Student'}</p>
+            <p className="truncate text-xs text-purple-700">{c.location}</p>
+          </div>
+          <span className="ml-2 shrink-0 text-sm font-bold tabular-nums text-gray-700">{out}m</span>
+        </div>
+        {c.pass_type === 'teacher_issued' && <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-blue-500">Teacher pass</p>}
+        {c.pass_type === 'excuse' && <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-blue-500">Excuse pass</p>}
+        <div className="mt-3">
+          {c.destination_teacher_id ? (
+            <button onClick={() => closePass(c.id, true)} className="w-full rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Confirm arrival</button>
+          ) : (
+            <button onClick={() => closePass(c.id, false)} className="w-full rounded-lg bg-purple-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-900">Check in</button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   const NavBtn = ({ id, label, icon, badge }: { id: View; label: string; icon: React.ReactNode; badge?: number }) => (
     <button onClick={() => setView(id)}
       className={`flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'}`}>
@@ -231,34 +257,32 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                   <div className="text-3xl text-gray-300">✓</div>
                   <p className="mt-2 text-sm text-gray-500">No students are out right now.</p>
                 </div>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {active.map((c) => {
-                    const out = mins(c.check_out_time)
-                    const color = out >= 10 ? 'border-red-300 bg-red-50' : out >= 6 ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-white'
-                    const s: any = c.student
+              ) : isAdmin ? (
+                // Admins see the whole district, split into clear per-school sections.
+                <div className="flex flex-col gap-7">
+                  {SCHOOLS.map((sc) => {
+                    const list = active.filter((c) => c.school === sc.id)
+                    const accent = sc.id === 'ms'
+                      ? { chip: 'bg-teal-100 text-teal-700', bar: 'bg-teal-400' }
+                      : { chip: 'bg-indigo-100 text-indigo-700', bar: 'bg-indigo-400' }
                     return (
-                      <div key={c.id} className={`rounded-2xl border p-4 shadow-sm ${color}`}>
-                        <div className="flex items-start justify-between">
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold text-gray-900">{s?.name ?? 'Student'}</p>
-                            <p className="truncate text-xs text-purple-700">{c.location}{isAdmin && c.school ? ` · ${String(c.school).toUpperCase()}` : ''}</p>
-                          </div>
-                          <span className="ml-2 shrink-0 text-sm font-bold tabular-nums text-gray-700">{out}m</span>
+                      <div key={sc.id}>
+                        <div className="mb-3 flex items-center gap-3">
+                          <span className={`h-5 w-1.5 rounded-full ${accent.bar}`} />
+                          <span className={`rounded-full px-3 py-1 text-xs font-bold ${accent.chip}`}>{sc.label}</span>
+                          <span className="text-sm text-gray-400">{list.length} out</span>
                         </div>
-                        {c.pass_type === 'teacher_issued' && <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-blue-500">Teacher pass</p>}
-                        {c.pass_type === 'excuse' && <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-blue-500">Excuse pass</p>}
-                        <div className="mt-3">
-                          {c.destination_teacher_id ? (
-                            <button onClick={() => closePass(c.id, true)} className="w-full rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Confirm arrival</button>
-                          ) : (
-                            <button onClick={() => closePass(c.id, false)} className="w-full rounded-lg bg-purple-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-900">Check in</button>
-                          )}
-                        </div>
+                        {list.length === 0 ? (
+                          <p className="rounded-2xl border border-dashed border-gray-200 bg-white/50 px-4 py-6 text-center text-sm italic text-gray-400">None out</p>
+                        ) : (
+                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{list.map(OutCard)}</div>
+                        )}
                       </div>
                     )
                   })}
                 </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{active.map(OutCard)}</div>
               )}
 
               {(() => {
