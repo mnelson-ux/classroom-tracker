@@ -20,12 +20,15 @@ export default function HistoryView({ token, students, school }: Props) {
   const [dateTo, setDateTo] = useState('')
   const [studentId, setStudentId] = useState('')
 
-  const load = async () => {
+  const load = async (o?: { from?: string; to?: string; studentId?: string }) => {
+    const f = o?.from !== undefined ? o.from : dateFrom
+    const tt = o?.to !== undefined ? o.to : dateTo
+    const sid = o?.studentId !== undefined ? o.studentId : studentId
     setLoading(true)
     const params = new URLSearchParams()
-    if (dateFrom) params.set('from', new Date(dateFrom).toISOString())
-    if (dateTo) { const end = new Date(dateTo); end.setHours(23, 59, 59); params.set('to', end.toISOString()) }
-    if (studentId) params.set('studentId', studentId)
+    if (f) params.set('from', new Date(f).toISOString())
+    if (tt) { const end = new Date(tt); end.setHours(23, 59, 59); params.set('to', end.toISOString()) }
+    if (sid) params.set('studentId', sid)
     params.set('school', school)
     params.set('ts', Date.now().toString())
     const res = await fetch(`/api/admin/history?${params}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
@@ -33,6 +36,11 @@ export default function HistoryView({ token, students, school }: Props) {
     setRecords(Array.isArray(data) ? data : [])
     setLoading(false)
   }
+
+  const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+  const showToday = () => { const d = todayStr(); setDateFrom(d); setDateTo(d); setStudentId(''); load({ from: d, to: d, studentId: '' }) }
+
+  const isToday = dateFrom === todayStr() && dateTo === todayStr()
 
   useEffect(() => { load() }, [school]) // eslint-disable-line
 
@@ -58,9 +66,15 @@ export default function HistoryView({ token, students, school }: Props) {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">History</h2>
-        <button onClick={exportCsv} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50">
-          Export CSV
-        </button>
+        <div className="flex gap-2">
+          <button onClick={showToday}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${isToday ? 'bg-purple-800 text-white' : 'border border-purple-200 text-purple-800 hover:bg-purple-50'}`}>
+            Today
+          </button>
+          <button onClick={exportCsv} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50">
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -122,7 +136,9 @@ export default function HistoryView({ token, students, school }: Props) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-gray-500">Showing up to 500 most recent records</p>
+      <p className="mt-2 text-xs text-gray-500">
+        {isToday ? `Today · ${records.length} checkout${records.length === 1 ? '' : 's'}, most recent first` : 'Showing up to 500 most recent records (newest first)'}
+      </p>
     </div>
   )
 }
