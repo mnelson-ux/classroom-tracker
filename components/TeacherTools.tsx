@@ -211,8 +211,10 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
     )
   }
 
-  const NavBtn = ({ id, label, icon, badge }: { id: View; label: string; icon: React.ReactNode; badge?: number }) => (
-    <button onClick={() => setView(id)}
+  // Plain render function (NOT a component) called inline as {navBtn(...)}, so the
+  // buttons reconcile in place instead of remounting on every 1s re-render.
+  const navBtn = (id: View, label: string, icon: React.ReactNode, badge?: number) => (
+    <button key={id} onClick={() => setView(id)}
       className={`flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900'}`}>
       {icon} <span className="flex-1">{label}</span>
       {!!badge && <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">{badge}</span>}
@@ -244,11 +246,11 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
         )}
 
         <nav className="contents md:flex md:flex-col md:gap-1">
-          <NavBtn id="home" label="Check Out & Board" icon={icons.board} />
-          <NavBtn id="today" label="Today's List" icon={icons.today} />
-          <NavBtn id="issue" label="Issue Pass" icon={icons.ticket} />
-          <NavBtn id="excuse" label="Excuse Student" icon={icons.edit} />
-          <NavBtn id="feedback" label="Report / Request" icon={icons.message} />
+          {navBtn('home', 'Check Out & Board', icons.board)}
+          {navBtn('today', "Today's List", icons.today)}
+          {navBtn('issue', 'Issue Pass', icons.ticket)}
+          {navBtn('excuse', 'Excuse Student', icons.edit)}
+          {navBtn('feedback', 'Report / Request', icons.message)}
           <div className="hidden h-px bg-gray-200 md:my-3 md:block" />
           <a href={`/reports?school=${school}`} className={linkCls}>{icons.chart} Reports</a>
           {isAdmin && (
