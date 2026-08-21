@@ -258,24 +258,25 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                   <p className="mt-2 text-sm text-gray-500">No students are out right now.</p>
                 </div>
               ) : isAdmin ? (
-                // Admins see the whole district, split into clear per-school sections.
-                <div className="flex flex-col gap-7">
-                  {SCHOOLS.map((sc) => {
-                    const list = active.filter((c) => c.school === sc.id)
-                    const accent = sc.id === 'ms'
+                // Admins see the whole district as two columns: Middle School | High School.
+                <div className="grid divide-y divide-gray-200 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm md:grid-cols-2 md:divide-y-0 md:divide-x">
+                  {(['ms', 'hs'] as const).map((id) => {
+                    const sc = SCHOOLS.find((s) => s.id === id)
+                    const list = active.filter((c) => c.school === id)
+                    const accent = id === 'ms'
                       ? { chip: 'bg-teal-100 text-teal-700', bar: 'bg-teal-400' }
                       : { chip: 'bg-indigo-100 text-indigo-700', bar: 'bg-indigo-400' }
                     return (
-                      <div key={sc.id}>
-                        <div className="mb-3 flex items-center gap-3">
+                      <div key={id} className="p-5">
+                        <div className="mb-4 flex items-center gap-3">
                           <span className={`h-5 w-1.5 rounded-full ${accent.bar}`} />
-                          <span className={`rounded-full px-3 py-1 text-xs font-bold ${accent.chip}`}>{sc.label}</span>
+                          <span className={`rounded-full px-3 py-1 text-xs font-bold ${accent.chip}`}>{sc?.label}</span>
                           <span className="text-sm text-gray-400">{list.length} out</span>
                         </div>
                         {list.length === 0 ? (
-                          <p className="rounded-2xl border border-dashed border-gray-200 bg-white/50 px-4 py-6 text-center text-sm italic text-gray-400">None out</p>
+                          <p className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm italic text-gray-400">None out</p>
                         ) : (
-                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{list.map(OutCard)}</div>
+                          <div className="flex flex-col gap-3">{list.map(OutCard)}</div>
                         )}
                       </div>
                     )
