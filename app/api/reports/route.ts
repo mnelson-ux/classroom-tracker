@@ -30,6 +30,8 @@ export async function GET(request: Request) {
   weekStart.setHours(0, 0, 0, 0)
   weekStart.setDate(weekStart.getDate() - weekStart.getDay()) // back to Sunday
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const todayStart = new Date(now)
+  todayStart.setHours(0, 0, 0, 0)
 
   let school = new URL(request.url).searchParams.get('school')
   // Teachers are locked to their own school — unless they teach at both.
@@ -51,11 +53,11 @@ export async function GET(request: Request) {
   if (school) rq = rq.eq('school', school)
   const { data: roster } = await rq
 
-  type StudentAgg = { student_name: string; week: PeriodStats; month: PeriodStats; all: PeriodStats }
+  type StudentAgg = { student_name: string; today: PeriodStats; week: PeriodStats; month: PeriodStats; all: PeriodStats }
   type TeacherAgg = {
     teacher_id: string
     teacher_name: string
-    week: PeriodStats; month: PeriodStats; all: PeriodStats
+    today: PeriodStats; week: PeriodStats; month: PeriodStats; all: PeriodStats
     students: Record<string, StudentAgg>
   }
 
@@ -65,7 +67,7 @@ export async function GET(request: Request) {
   // Cross-teacher per-student totals, seeded with the whole roster (zeros).
   const studentTotals: Record<string, StudentAgg> = {}
   for (const r of (roster ?? []) as any[]) {
-    studentTotals[r.name] = { student_name: r.name, week: {}, month: {}, all: {} }
+    studentTotals[r.name] = { student_name: r.name, today: {}, week: {}, month: {}, all: {} }
   }
 
   for (const c of (checkouts ?? []) as any[]) {
@@ -78,19 +80,20 @@ export async function GET(request: Request) {
     locationSet.add(location)
 
     if (!teachers[tId]) {
-      teachers[tId] = { teacher_id: tId, teacher_name: tName, week: {}, month: {}, all: {}, students: {} }
+      teachers[tId] = { teacher_id: tId, teacher_name: tName, today: {}, week: {}, month: {}, all: {}, students: {} }
     }
     const t = teachers[tId]
     if (!t.students[sName]) {
-      t.students[sName] = { student_name: sName, week: {}, month: {}, all: {} }
+      t.students[sName] = { student_name: sName, today: {}, week: {}, month: {}, all: {} }
     }
     const s = t.students[sName]
-    if (!studentTotals[sName]) studentTotals[sName] = { student_name: sName, week: {}, month: {}, all: {} }
+    if (!studentTotals[sName]) studentTotals[sName] = { student_name: sName, today: {}, week: {}, month: {}, all: {} }
     const st = studentTotals[sName]
 
     addTo(t.all, location, mins); addTo(s.all, location, mins); addTo(st.all, location, mins)
     if (when && when >= monthStart) { addTo(t.month, location, mins); addTo(s.month, location, mins); addTo(st.month, location, mins) }
     if (when && when >= weekStart) { addTo(t.week, location, mins); addTo(s.week, location, mins); addTo(st.week, location, mins) }
+    if (when && when >= todayStart) { addTo(t.today, location, mins); addTo(s.today, location, mins); addTo(st.today, location, mins) }
   }
 
   const result = Object.values(teachers)

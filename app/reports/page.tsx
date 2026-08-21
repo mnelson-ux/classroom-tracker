@@ -7,11 +7,11 @@ import type { AuthState } from '@/lib/types'
 
 interface Bucket { trips: number; minutes: number }
 type PeriodStats = Record<string, Bucket>
-interface StudentAgg { student_name: string; week: PeriodStats; month: PeriodStats; all: PeriodStats }
+interface StudentAgg { student_name: string; today: PeriodStats; week: PeriodStats; month: PeriodStats; all: PeriodStats }
 interface TeacherAgg {
   teacher_id: string
   teacher_name: string
-  week: PeriodStats; month: PeriodStats; all: PeriodStats
+  today: PeriodStats; week: PeriodStats; month: PeriodStats; all: PeriodStats
   students: StudentAgg[]
 }
 
@@ -178,6 +178,7 @@ export default function ReportsPage() {
               <thead className="border-b border-gray-200 bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Location</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Today</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">This Week</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">This Month</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">All Time</th>
@@ -187,6 +188,7 @@ export default function ReportsPage() {
                 {locationRows.map((locName) => (
                   <tr key={locName}>
                     <td className="px-4 py-3 font-medium text-gray-700">{locName}</td>
+                    <Cell stats={su.today} loc={locName} />
                     <Cell stats={su.week} loc={locName} />
                     <Cell stats={su.month} loc={locName} />
                     <Cell stats={su.all} loc={locName} />
@@ -194,6 +196,7 @@ export default function ReportsPage() {
                 ))}
                 <tr className="border-t-2 border-gray-300 bg-purple-50">
                   <td className="px-4 py-3 font-bold text-purple-900">Total (all locations)</td>
+                  <Cell stats={su.today} loc="Total" />
                   <Cell stats={su.week} loc="Total" />
                   <Cell stats={su.month} loc="Total" />
                   <Cell stats={su.all} loc="Total" />
@@ -219,6 +222,7 @@ export default function ReportsPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Teacher <span className="font-normal normal-case text-gray-400">· {loc}</span>
                   </th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Today</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">This Week</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">This Month</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">All Time</th>
@@ -233,6 +237,7 @@ export default function ReportsPage() {
                         <span className="mr-2 inline-block text-gray-400">{(searching || expanded[t.teacher_id]) ? '▾' : '▸'}</span>
                         {t.teacher_name}
                       </td>
+                      <Cell stats={t.today} loc={loc} />
                       <Cell stats={t.week} loc={loc} />
                       <Cell stats={t.month} loc={loc} />
                       <Cell stats={t.all} loc={loc} />
@@ -240,6 +245,7 @@ export default function ReportsPage() {
                     {(searching || expanded[t.teacher_id]) && t.students.map((s) => (
                       <tr key={`${t.teacher_id}-${s.student_name}`} className="bg-gray-50/50">
                         <td className="py-2 pl-12 pr-4 text-gray-700">{s.student_name}</td>
+                        <Cell stats={s.today} loc={loc} />
                         <Cell stats={s.week} loc={loc} />
                         <Cell stats={s.month} loc={loc} />
                         <Cell stats={s.all} loc={loc} />
@@ -253,7 +259,7 @@ export default function ReportsPage() {
         )}
         <p className="mt-3 text-xs text-gray-500">
           Use the buttons above to filter by location. Tap a teacher row to see the per-student breakdown.
-          &quot;This Week&quot; starts Sunday; &quot;This Month&quot; starts the 1st.
+          &quot;Today&quot; resets at midnight; &quot;This Week&quot; starts Sunday; &quot;This Month&quot; starts the 1st.
         </p>
       </div>
     </div>
