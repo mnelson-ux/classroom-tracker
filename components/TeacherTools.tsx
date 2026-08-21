@@ -213,16 +213,16 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
 
   const NavBtn = ({ id, label, icon, badge }: { id: View; label: string; icon: React.ReactNode; badge?: number }) => (
     <button onClick={() => setView(id)}
-      className={`flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'}`}>
+      className={`flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${view === id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900'}`}>
       {icon} <span className="flex-1">{label}</span>
       {!!badge && <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">{badge}</span>}
     </button>
   )
-  const linkCls = 'flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-white/70 hover:text-gray-900'
+  const linkCls = 'flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-white hover:text-gray-900'
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="flex items-center gap-2 overflow-x-auto border-b border-purple-200/60 bg-gradient-to-b from-purple-100/70 to-purple-50/50 p-3 backdrop-blur-xl md:sticky md:top-0 md:h-screen md:w-64 md:flex-col md:items-stretch md:gap-1 md:self-start md:overflow-x-visible md:overflow-y-auto md:border-b-0 md:border-r md:p-4">
+      <aside className="flex items-center gap-2 overflow-x-auto border-b border-purple-200/60 bg-gradient-to-b from-purple-100 to-purple-50 p-3 md:sticky md:top-0 md:h-screen md:w-64 md:flex-col md:items-stretch md:gap-1 md:self-start md:overflow-x-visible md:overflow-y-auto md:border-b-0 md:border-r md:p-4">
         {/* Brand — hidden on mobile to keep the bar compact */}
         <div className="mb-6 hidden shrink-0 items-center gap-3 px-1 pt-1 md:flex">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-700">{icons.grad}</span>
@@ -233,7 +233,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
         </div>
 
         {canSwitch && (
-          <div className="flex shrink-0 gap-1 rounded-lg bg-white/60 p-1 md:mb-4">
+          <div className="flex shrink-0 gap-1 rounded-lg bg-white p-1 md:mb-4">
             {SCHOOLS.map((s) => (
               <button key={s.id} onClick={() => setAdminSchool(s.id)}
                 className={`flex-1 whitespace-nowrap rounded-md px-2 py-1.5 text-xs font-semibold transition ${adminSchool === s.id ? 'bg-white text-purple-800 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
