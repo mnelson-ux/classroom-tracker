@@ -95,7 +95,7 @@ export default function HistoryView({ token, students, school }: Props) {
           </select>
         </div>
         <div className="flex items-end">
-          <button onClick={load} disabled={loading}
+          <button onClick={() => load()} disabled={loading}
             className="rounded-xl bg-purple-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-900 disabled:opacity-40">
             {loading ? 'Loading...' : 'Search'}
           </button>
