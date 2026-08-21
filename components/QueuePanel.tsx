@@ -10,7 +10,7 @@ function firstName(name: string) {
 // list is "up next".
 // - anonymous (public kiosk): position numbers only, no student names (privacy).
 // - named (staff board): shows names + a Leave button to manage the line.
-export default function QueuePanel({ queue, onLeave, anonymous = false }: { queue: QueueEntry[]; onLeave?: (id: string) => void; anonymous?: boolean }) {
+export default function QueuePanel({ queue, onLeave, anonymous = false, title }: { queue: QueueEntry[]; onLeave?: (id: string) => void; anonymous?: boolean; title?: string }) {
   if (!queue || queue.length === 0) return null
 
   const groups: { key: string; label: string; items: QueueEntry[] }[] = []
@@ -27,7 +27,7 @@ export default function QueuePanel({ queue, onLeave, anonymous = false }: { queu
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm">
       <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-900">
-        <span>⏳</span> Waiting Line
+        <span>⏳</span> {title ?? 'Waiting Line'}
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
         {groups.map((grp) => (

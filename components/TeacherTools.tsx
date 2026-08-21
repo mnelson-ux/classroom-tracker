@@ -38,7 +38,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [students, setStudents] = useState<Student[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [active, setActive] = useState<Checkout[]>([])
-  const [queue, setQueue] = useState<QueueEntry[]>([])
+  const [queueBySchool, setQueueBySchool] = useState<Record<string, QueueEntry[]>>({})
   const [nurseBySchool, setNurseBySchool] = useState<Record<string, { out: number; waiting: number }>>({})
   const [nursePass, setNursePass] = useState<{ token: string; school: string; name: string } | null>(null)
   const [, setTick] = useState(0)
@@ -64,25 +64,30 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
 
   const loadBoard = useCallback(async (sc: string) => {
     const admin = !!me?.isAdmin
-    const [sRes, tRes, cRes, qRes] = await Promise.all([
+    const [sRes, tRes, cRes] = await Promise.all([
       fetch(`/api/students?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`/api/teachers?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
       // Admins see the whole district on the board; teachers see their own school.
       fetch(admin ? `/api/checkouts?ts=${Date.now()}` : `/api/checkouts?school=${sc}&ts=${Date.now()}`, { cache: 'no-store' }),
-      fetch(`/api/queue?school=${sc}&ts=${Date.now()}`, { headers: authHeaders, cache: 'no-store' }),
     ])
-    const [s, t, c, qd] = await Promise.all([sRes.json(), tRes.json(), cRes.json(), qRes.json()])
+    const [s, t, c] = await Promise.all([sRes.json(), tRes.json(), cRes.json()])
     if (Array.isArray(s)) setStudents(s)
     if (Array.isArray(t)) setTeachers(t)
     if (Array.isArray(c)) setActive(c)
-    if (Array.isArray(qd)) setQueue(qd)
 
-    // Anonymous nurse counts — both schools for an admin, just this one otherwise.
+    // Waiting line + anonymous nurse counts — both schools for an admin, just this one otherwise.
     const schools = admin ? SCHOOLS.map((x) => x.id) : [sc]
-    const results = await Promise.all(schools.map((x) => fetch(`/api/nurse?school=${x}&ts=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null)))
-    const map: Record<string, { out: number; waiting: number }> = {}
-    schools.forEach((x, i) => { const d = results[i]; if (d && typeof d.out === 'number') map[x] = { out: d.out, waiting: d.waiting ?? 0 } })
-    setNurseBySchool(map)
+    const [qResults, nResults] = await Promise.all([
+      Promise.all(schools.map((x) => fetch(`/api/queue?school=${x}&ts=${Date.now()}`, { headers: authHeaders, cache: 'no-store' }).then((r) => r.json()).catch(() => []))),
+      Promise.all(schools.map((x) => fetch(`/api/nurse?school=${x}&ts=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null))),
+    ])
+    const qmap: Record<string, QueueEntry[]> = {}
+    const nmap: Record<string, { out: number; waiting: number }> = {}
+    schools.forEach((x, i) => {
+      qmap[x] = Array.isArray(qResults[i]) ? qResults[i] : []
+      const d = nResults[i]; if (d && typeof d.out === 'number') nmap[x] = { out: d.out, waiting: d.waiting ?? 0 }
+    })
+    setQueueBySchool(qmap); setNurseBySchool(nmap)
   }, [authHeaders, me])
 
   const sendToNurse = async () => {
@@ -305,10 +310,29 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                 )
               })()}
 
-              {queue.length > 0 && (
-                <div className="mt-8">
-                  <QueuePanel queue={queue} onLeave={leaveQueue} />
-                </div>
+              {isAdmin ? (
+                (['ms', 'hs'] as const).some((id) => (queueBySchool[id]?.length ?? 0) > 0) && (
+                  <div className="mt-8 grid gap-4 md:grid-cols-2">
+                    {(['ms', 'hs'] as const).map((id) => {
+                      const q = queueBySchool[id] ?? []
+                      const label = SCHOOLS.find((s) => s.id === id)?.label
+                      return q.length === 0 ? (
+                        <div key={id} className="rounded-2xl border border-dashed border-gray-200 bg-white/50 p-5">
+                          <p className="text-sm font-bold text-gray-500">⏳ {label} · Waiting Line</p>
+                          <p className="mt-2 text-sm italic text-gray-400">No one waiting.</p>
+                        </div>
+                      ) : (
+                        <QueuePanel key={id} queue={q} onLeave={leaveQueue} title={`${label} · Waiting Line`} />
+                      )
+                    })}
+                  </div>
+                )
+              ) : (
+                (queueBySchool[school]?.length ?? 0) > 0 && (
+                  <div className="mt-8">
+                    <QueuePanel queue={queueBySchool[school] ?? []} onLeave={leaveQueue} />
+                  </div>
+                )
               )}
 
               <h2 className="mb-4 mt-8 text-2xl font-bold text-gray-900">Check Out a Student</h2>
