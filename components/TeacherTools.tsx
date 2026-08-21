@@ -8,7 +8,7 @@ import QueuePanel from '@/components/QueuePanel'
 import NursePass from '@/components/NursePass'
 import type { Student, Teacher, Checkout, QueueEntry } from '@/lib/types'
 
-type View = 'home' | 'issue' | 'excuse' | 'feedback'
+type View = 'home' | 'today' | 'issue' | 'excuse' | 'feedback'
 
 function mins(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
@@ -27,6 +27,7 @@ const icons = {
   settings: svg(<><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></>),
   logout: svg(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></>),
   key: svg(<><circle cx="7.5" cy="15.5" r="4.5" /><path d="m10.5 12.5 8-8" /><path d="m17 4 3 3" /><path d="m14 7 3 3" /></>),
+  today: svg(<><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>),
 }
 
 export default function TeacherTools({ token, onLogout, initialSchool }: { token: string; onLogout: () => void; initialSchool?: string }) {
@@ -41,6 +42,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [queueBySchool, setQueueBySchool] = useState<Record<string, QueueEntry[]>>({})
   const [nurseBySchool, setNurseBySchool] = useState<Record<string, { out: number; waiting: number }>>({})
   const [nursePass, setNursePass] = useState<{ token: string; school: string; name: string } | null>(null)
+  const [todayList, setTodayList] = useState<Checkout[]>([])
   const [, setTick] = useState(0)
 
   const [search, setSearch] = useState('')
@@ -74,6 +76,10 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
     if (Array.isArray(s)) setStudents(s)
     if (Array.isArray(t)) setTeachers(t)
     if (Array.isArray(c)) setActive(c)
+
+    // Today's checkouts (most recent first) — whole district for admins.
+    fetch(admin ? `/api/today?ts=${Date.now()}` : `/api/today?school=${sc}&ts=${Date.now()}`, { headers: authHeaders, cache: 'no-store' })
+      .then((r) => r.json()).then((d) => { if (Array.isArray(d)) setTodayList(d) }).catch(() => {})
 
     // Waiting line + anonymous nurse counts — both schools for an admin, just this one otherwise.
     const schools = admin ? SCHOOLS.map((x) => x.id) : [sc]
@@ -239,6 +245,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
 
         <nav className="contents md:flex md:flex-col md:gap-1">
           <NavBtn id="home" label="Check Out & Board" icon={icons.board} />
+          <NavBtn id="today" label="Today's List" icon={icons.today} />
           <NavBtn id="issue" label="Issue Pass" icon={icons.ticket} />
           <NavBtn id="excuse" label="Excuse Student" icon={icons.edit} />
           <NavBtn id="feedback" label="Report / Request" icon={icons.message} />
@@ -340,6 +347,48 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                 <CheckoutPanel students={students} teachers={teachers}
                   activeCheckouts={active} onCheckoutSuccess={() => loadBoard(school)} />
               </div>
+            </>
+          )}
+
+          {view === 'today' && (
+            <>
+              <h2 className="mb-4 text-2xl font-bold text-gray-900">Today&apos;s Checkouts <span className="text-base font-normal text-gray-400">({todayList.length})</span></h2>
+              {todayList.length === 0 ? (
+                <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+                  <div className="text-3xl text-gray-300">✓</div>
+                  <p className="mt-2 text-sm text-gray-500">No checkouts yet today.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-gray-200 bg-gray-50">
+                      <tr>
+                        {['Student', 'Location', 'Teacher', 'Out', 'Back', 'Min'].map((h) => (
+                          <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {todayList.map((r) => {
+                        const st = r.student as { name?: string } | undefined
+                        const te = r.teacher as { name?: string } | undefined
+                        const fmt = (iso?: string | null) => iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : ''
+                        return (
+                          <tr key={r.id} className={r.is_checked_out ? 'bg-amber-50/60' : ''}>
+                            <td className="px-3 py-2.5 font-medium text-gray-900">{st?.name ?? '—'}{isAdmin && r.school ? <span className="ml-1 text-[10px] font-bold text-gray-400">{String(r.school).toUpperCase()}</span> : null}</td>
+                            <td className="px-3 py-2.5 text-purple-700">{r.location}</td>
+                            <td className="px-3 py-2.5 text-gray-500">{te?.name ?? '—'}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{fmt(r.check_out_time)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{r.is_checked_out ? <span className="font-semibold text-amber-600">Still out</span> : fmt(r.check_in_time)}</td>
+                            <td className="px-3 py-2.5 font-semibold text-gray-800">{r.is_checked_out ? mins(r.check_out_time) : (r.duration_minutes ?? 0)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="mt-2 text-xs text-gray-500">Everyone who checked out today, most recent first. Amber = still out. (Anonymous nurse passes are not listed.)</p>
             </>
           )}
 
