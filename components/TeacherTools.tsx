@@ -112,6 +112,12 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
     loadBoard(school)
   }
 
+  // Staff-clear one anonymous nurse visit (e.g. a student who left without checking in).
+  const checkInNurse = async (sc: string) => {
+    await fetch('/api/nurse', { method: 'POST', headers: authHeaders, body: JSON.stringify({ action: 'checkin_one', school: sc }) })
+    loadBoard(school)
+  }
+
   useEffect(() => {
     ;(async () => {
       const r = await fetch('/api/teacher/me', { headers: authHeaders, cache: 'no-store' })
@@ -305,14 +311,21 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                 const anyNurse = schools.some((sc) => (nurseBySchool[sc]?.out || 0) > 0 || (nurseBySchool[sc]?.waiting || 0) > 0)
                 if (!anyNurse) return null
                 return (
-                  <div className="mt-8 flex items-start gap-4 rounded-2xl border border-red-200 bg-red-50/60 p-5 shadow-sm">
-                    <span className="text-3xl">🩺</span>
-                    <div>
+                  <div className="mt-8 rounded-2xl border border-red-200 bg-red-50/60 p-5 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">🩺</span>
                       <p className="font-bold text-gray-900">Nurse <span className="text-xs font-normal text-gray-500">· anonymous</span></p>
+                    </div>
+                    <div className="mt-3 flex flex-col gap-2">
                       {schools.map((sc) => {
                         const n = nurseBySchool[sc] ?? { out: 0, waiting: 0 }
                         if (n.out === 0 && n.waiting === 0) return null
-                        return <p key={sc} className="text-sm text-gray-600">{isAdmin ? `${schoolLabel(sc)}: ` : 'At the nurse: '}{n.out}{n.waiting > 0 ? ` · ${n.waiting} waiting` : ''}</p>
+                        return (
+                          <div key={sc} className="flex items-center justify-between rounded-xl border border-red-100 bg-white px-3 py-2 text-sm">
+                            <span className="font-semibold text-gray-800">{isAdmin ? `${schoolLabel(sc)}: ` : 'At the nurse: '}{n.out}{n.waiting > 0 ? ` · ${n.waiting} waiting` : ''}</span>
+                            {n.out > 0 && <button onClick={() => checkInNurse(sc)} className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Check one in</button>}
+                          </div>
+                        )
                       })}
                     </div>
                   </div>
