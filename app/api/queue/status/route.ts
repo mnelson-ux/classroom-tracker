@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getActiveProtectedWindow } from '@/lib/protected'
+import { partnerIsOut, isFrontEligible } from '@/lib/keepApart'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -28,11 +29,15 @@ export async function GET(request: Request) {
     .from('pass_queue').select('id, location, gender').eq('student_id', studentId).eq('school', school).maybeSingle()
   if (!mine) return NextResponse.json({ inLine: false }, noStore)
 
-  // Am I at the front of my line?
+  // Am I the first ELIGIBLE person in my line? (keep-apart–blocked students ahead
+  // are skipped, and I'm never ready while my own keep-apart partner is out.)
   let lineQ = supabaseAdmin.from('pass_queue').select('student_id').eq('school', school).eq('location', mine.location).order('created_at')
   if (mine.gender) lineQ = lineQ.eq('gender', mine.gender)
   const { data: line } = await lineQ
-  const isFront = (line ?? [])[0]?.student_id === studentId
+  const ordered = (line ?? []).map((e) => e.student_id)
+
+  const myBlocked = await partnerIsOut(studentId, school)
+  const frontEligible = !myBlocked && await isFrontEligible(ordered, studentId, school)
 
   // Is there room right now?
   const { data: settingsRows } = await supabaseAdmin.from('settings').select('key, value').eq('school', school)
@@ -46,6 +51,6 @@ export async function GET(request: Request) {
     .eq('is_checked_out', true).eq('location', 'Bathroom').eq('school', school)
   const occupancy = (bath ?? []).filter((c: any) => c.students?.gender === mine.gender && !c.teacher?.has_private_bathroom).length
 
-  const ready = isFront && occupancy < capacity
+  const ready = frontEligible && occupancy < capacity
   return NextResponse.json({ inLine: true, ready }, noStore)
 }

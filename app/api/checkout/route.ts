@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { minutesOfDayInTz, minutesToLabel } from '@/lib/timeWindows'
 import { checkThrottle, registerFailure, clearThrottle, lockMessage, PIN_THROTTLE } from '@/lib/throttle'
 import { isUuid } from '@/lib/validate'
+import { partnerIsOut } from '@/lib/keepApart'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,28 +58,15 @@ export async function POST(request: Request) {
 
   // ---- KEEP-APART ----
   // Certain students may not be out at the same time (anti-meet-up). If a paired
-  // partner is currently out (to any location), this student is blocked.
-  const { data: pairs } = await supabaseAdmin
-    .from('keep_apart')
-    .select('student_a, student_b')
-    .eq('school', student.school)
-    .or(`student_a.eq.${studentId},student_b.eq.${studentId}`)
-  const partnerIds = (pairs ?? []).map((p) => (p.student_a === studentId ? p.student_b : p.student_a))
-  if (partnerIds.length > 0) {
-    const { count: outPartners } = await supabaseAdmin
-      .from('checkouts')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_checked_out', true)
-      .eq('school', student.school)
-      .in('student_id', partnerIds)
-    if ((outPartners ?? 0) > 0) {
-      // Neutral message on purpose — never reveal who the paired student is.
-      return NextResponse.json({
-        error: `You can't check out right now. Please try again in a little while, or ask your teacher.`,
-        keepApart: true,
-      }, { status: 409 })
-    }
-  }
+  // partner is currently out, this student is "blocked": for the bathroom they may
+  // still wait in line (they just aren't let through until the partner returns);
+  // for other destinations there's no line, so it's a hard stop.
+  const blocked = await partnerIsOut(studentId, student.school)
+  const keepApartResp = NextResponse.json({
+    error: `You can't check out right now. Please try again in a little while, or ask your teacher.`,
+    keepApart: true,
+  }, { status: 409 })
+  if (blocked && location !== 'Bathroom') return keepApartResp
 
   // Load this school's settings once (used by protected time, queue, and limits).
   const { data: settingsRows } = await supabaseAdmin.from('settings').select('key, value').eq('school', student.school)
@@ -112,19 +100,25 @@ export async function POST(request: Request) {
     const { data: queue } = await q
     const list = queue ?? []
     const idx = list.findIndex((e) => e.student_id === studentId)
-    const front = list[0]
     const spotOpen = occupancy < capacity
 
-    // You may go if there's room AND you're either not in a line or at the front of it.
-    if (spotOpen && (list.length === 0 || (front && front.student_id === studentId))) {
+    // First eligible person in line = first one NOT held back by keep-apart. A blocked
+    // student is skipped so they don't stall everyone behind them.
+    const ahead = (idx >= 0 ? list.slice(0, idx) : list).map((e) => e.student_id)
+    let someoneEligibleAhead = false
+    for (const id of ahead) { if (!(await partnerIsOut(id, student.school))) { someoneEligibleAhead = true; break } }
+
+    // You may go now only if you're not blocked, there's room, and nobody eligible is ahead.
+    if (!blocked && spotOpen && !someoneEligibleAhead) {
       return { allow: true as const }
     }
     if (idx >= 0) {
-      return { allow: false as const, resp: { error: `You're #${idx + 1} in line for the ${loc}. Watch the screen — we'll show when it's your turn.`, inQueue: true, position: idx + 1 } }
+      return { allow: false as const, resp: { error: `You're in line for the ${loc}. Watch the screen — we'll show when it's your turn.`, inQueue: true, position: idx + 1 } }
     }
     if (list.length >= queueMax) {
       return { allow: false as const, resp: { error: `The ${loc} line is full (${queueMax} waiting). Please try again in a few minutes.`, queueFull: true } }
     }
+    // Blocked (or full): offer the line so they can wait their turn.
     return { allow: false as const, resp: { error: `The ${loc} is full right now.`, canQueue: true, location: loc, position: list.length + 1 } }
   }
 
@@ -168,6 +162,9 @@ export async function POST(request: Request) {
       const sharedOut = sameGenderOut.filter((c: any) => !c.teacher?.has_private_bathroom)
       const decision = await queueDecision('Bathroom', gender, totalLimit, sharedOut.length)
       if (!decision.allow) return NextResponse.json(decision.resp, { status: 409 })
+    } else if (blocked) {
+      // Private bathroom has no shared line — a kept-apart student simply waits.
+      return keepApartResp
     }
 
     // Daily time limit
