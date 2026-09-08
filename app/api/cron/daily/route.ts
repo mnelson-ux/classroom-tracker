@@ -17,9 +17,25 @@ export async function GET(request: Request) {
     keptAlive = true
   } catch {}
 
-  // Anonymous nurse visits are same-day only — clear any leftovers so a straggler
-  // (a student who left the line/nurse without checking in) never carries overnight.
-  try { await supabaseAdmin.from('nurse_visits').delete().not('id', 'is', null) } catch {}
+  // ---- Straggler cleanup (nothing carries day to day) ----
+  // Age-based so it's safe to run at any time: only clears entries far older than
+  // any legitimate one, and the nightly run wipes everything from the prior day.
+  const cleaned: Record<string, number> = {}
+  const threeHrsAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+  const fourHrsAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+  try {
+    // Anonymous nurse visits (out + waiting) — nobody is legitimately at the nurse for 3h.
+    const nv = await supabaseAdmin.from('nurse_visits').delete({ count: 'exact' }).lt('created_at', threeHrsAgo)
+    cleaned.nurse_visits = nv.count ?? 0
+    // Bathroom waiting-line entries.
+    const pq = await supabaseAdmin.from('pass_queue').delete({ count: 'exact' }).lt('created_at', threeHrsAgo)
+    cleaned.queue = pq.count ?? 0
+    // Open checkouts a student never checked back in from — close them (no bogus duration).
+    const co = await supabaseAdmin.from('checkouts')
+      .update({ is_checked_out: false, check_in_time: new Date().toISOString(), duration_minutes: null }, { count: 'exact' })
+      .eq('is_checked_out', true).lt('check_out_time', fourHrsAgo)
+    cleaned.checkouts_closed = co.count ?? 0
+  } catch {}
 
   const secret = process.env.CRON_SECRET
   const authed = !!secret && request.headers.get('authorization') === `Bearer ${secret}`
@@ -37,6 +53,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: true,
     keptAlive,
+    cleaned,
     resetChecked: authed,
     resets,
     at: new Date().toISOString(),

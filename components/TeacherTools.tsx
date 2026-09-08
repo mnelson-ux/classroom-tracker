@@ -40,7 +40,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [active, setActive] = useState<Checkout[]>([])
   const [queueBySchool, setQueueBySchool] = useState<Record<string, QueueEntry[]>>({})
-  const [nurseBySchool, setNurseBySchool] = useState<Record<string, { out: number; waiting: number }>>({})
+  const [nurseBySchool, setNurseBySchool] = useState<Record<string, { out: number; waiting: number; oldest?: string | null }>>({})
   const [nursePass, setNursePass] = useState<{ token: string; school: string; name: string } | null>(null)
   const [todayList, setTodayList] = useState<Checkout[]>([])
   const [, setTick] = useState(0)
@@ -88,10 +88,10 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
       Promise.all(schools.map((x) => fetch(`/api/nurse?school=${x}&ts=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null))),
     ])
     const qmap: Record<string, QueueEntry[]> = {}
-    const nmap: Record<string, { out: number; waiting: number }> = {}
+    const nmap: Record<string, { out: number; waiting: number; oldest?: string | null }> = {}
     schools.forEach((x, i) => {
       qmap[x] = Array.isArray(qResults[i]) ? qResults[i] : []
-      const d = nResults[i]; if (d && typeof d.out === 'number') nmap[x] = { out: d.out, waiting: d.waiting ?? 0 }
+      const d = nResults[i]; if (d && typeof d.out === 'number') nmap[x] = { out: d.out, waiting: d.waiting ?? 0, oldest: d.oldest ?? null }
     })
     setQueueBySchool(qmap); setNurseBySchool(nmap)
   }, [authHeaders, me])
@@ -324,9 +324,14 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                       {schools.map((sc) => {
                         const n = nurseBySchool[sc] ?? { out: 0, waiting: 0 }
                         if (n.out === 0 && n.waiting === 0) return null
+                        const ageMin = n.oldest ? mins(n.oldest) : 0
+                        const stale = ageMin >= 30
                         return (
                           <div key={sc} className="flex items-center justify-between gap-2 rounded-xl border border-red-100 bg-white px-3 py-2 text-sm">
-                            <span className="font-semibold text-gray-800">{isAdmin ? `${schoolLabel(sc)}: ` : 'At the nurse: '}{n.out}{n.waiting > 0 ? ` · ${n.waiting} waiting` : ''}</span>
+                            <span className="font-semibold text-gray-800">
+                              {isAdmin ? `${schoolLabel(sc)}: ` : 'At the nurse: '}{n.out}{n.waiting > 0 ? ` · ${n.waiting} waiting` : ''}
+                              {n.oldest ? <span className={`ml-2 text-xs font-normal ${stale ? 'font-semibold text-amber-600' : 'text-gray-400'}`}>· oldest {ageMin}m ago{stale ? ' ⚠' : ''}</span> : null}
+                            </span>
                             <div className="flex shrink-0 gap-2">
                               <button onClick={() => checkInNurse(sc)} className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Clear one</button>
                               <button onClick={() => clearNurse(sc)} className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Clear all</button>

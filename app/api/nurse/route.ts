@@ -33,7 +33,9 @@ export async function GET(request: Request) {
   if (!school) return NextResponse.json({ error: 'Missing school' }, { status: 400 })
   const { capacity } = await limits(school)
   const { out, waiting } = await rowsFor(school)
-  const resp: Record<string, unknown> = { capacity, out: out.length, waiting: waiting.length }
+  // Oldest entry's timestamp (rows are ordered oldest-first) — lets staff spot a straggler.
+  const oldest = [out[0]?.created_at, waiting[0]?.created_at].filter(Boolean).sort()[0] ?? null
+  const resp: Record<string, unknown> = { capacity, out: out.length, waiting: waiting.length, oldest }
   if (token) {
     if (out.some((r) => r.token === token)) { resp.state = 'out' }
     else {
