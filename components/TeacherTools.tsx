@@ -113,6 +113,10 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   }
 
   // Staff-clear one anonymous nurse visit (e.g. a student who left without checking in).
+  const clearNurse = async (sc: string) => {
+    await fetch('/api/nurse', { method: 'POST', headers: authHeaders, body: JSON.stringify({ action: 'clear_all', school: sc }) })
+    loadBoard(school)
+  }
   const checkInNurse = async (sc: string) => {
     await fetch('/api/nurse', { method: 'POST', headers: authHeaders, body: JSON.stringify({ action: 'checkin_one', school: sc }) })
     loadBoard(school)
@@ -321,9 +325,12 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                         const n = nurseBySchool[sc] ?? { out: 0, waiting: 0 }
                         if (n.out === 0 && n.waiting === 0) return null
                         return (
-                          <div key={sc} className="flex items-center justify-between rounded-xl border border-red-100 bg-white px-3 py-2 text-sm">
+                          <div key={sc} className="flex items-center justify-between gap-2 rounded-xl border border-red-100 bg-white px-3 py-2 text-sm">
                             <span className="font-semibold text-gray-800">{isAdmin ? `${schoolLabel(sc)}: ` : 'At the nurse: '}{n.out}{n.waiting > 0 ? ` · ${n.waiting} waiting` : ''}</span>
-                            {n.out > 0 && <button onClick={() => checkInNurse(sc)} className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Check one in</button>}
+                            <div className="flex shrink-0 gap-2">
+                              <button onClick={() => checkInNurse(sc)} className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Clear one</button>
+                              <button onClick={() => clearNurse(sc)} className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Clear all</button>
+                            </div>
                           </div>
                         )
                       })}

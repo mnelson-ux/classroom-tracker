@@ -17,6 +17,10 @@ export async function GET(request: Request) {
     keptAlive = true
   } catch {}
 
+  // Anonymous nurse visits are same-day only — clear any leftovers so a straggler
+  // (a student who left the line/nurse without checking in) never carries overnight.
+  try { await supabaseAdmin.from('nurse_visits').delete().not('id', 'is', null) } catch {}
+
   const secret = process.env.CRON_SECRET
   const authed = !!secret && request.headers.get('authorization') === `Bearer ${secret}`
 

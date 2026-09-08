@@ -60,13 +60,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true }, noStore)
   }
 
-  // Staff check one anonymous nurse visit back in (oldest first).
+  // Staff clear one anonymous nurse entry — an 'out' visit first, otherwise a
+  // stuck 'waiting' one (so a student who left the line can always be cleared).
   if (action === 'checkin_one') {
     if (!staff) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const { out } = await rowsFor(school)
-    if (out[0]) await supabaseAdmin.from('nurse_visits').delete().eq('id', out[0].id)
+    const { out, waiting } = await rowsFor(school)
+    const target = out[0] ?? waiting[0]
+    if (target) await supabaseAdmin.from('nurse_visits').delete().eq('id', target.id)
     const after = await rowsFor(school)
     return NextResponse.json({ out: after.out.length, waiting: after.waiting.length }, noStore)
+  }
+
+  // Staff clear ALL anonymous nurse entries for a school (out + waiting).
+  if (action === 'clear_all') {
+    if (!staff) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    await supabaseAdmin.from('nurse_visits').delete().eq('school', school)
+    return NextResponse.json({ out: 0, waiting: 0 }, noStore)
   }
 
   // Claim an open spot when it's this device's turn.
