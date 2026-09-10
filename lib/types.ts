@@ -48,6 +48,7 @@ export interface Checkout {
   duration_minutes: number | null
   is_checked_out: boolean
   school: string
+  capped: boolean
   pass_type: 'student' | 'teacher_issued' | 'excuse'
   issued_by: string | null
   destination_teacher_id: string | null

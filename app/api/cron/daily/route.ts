@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { runAutoResetForSchool } from '@/lib/autoReset'
 import { SCHOOLS } from '@/lib/schools'
+import { maxRecordedMinutes } from '@/lib/cap'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,11 +31,17 @@ export async function GET(request: Request) {
     // Bathroom waiting-line entries.
     const pq = await supabaseAdmin.from('pass_queue').delete({ count: 'exact' }).lt('created_at', threeHrsAgo)
     cleaned.queue = pq.count ?? 0
-    // Open checkouts a student never checked back in from — close them (no bogus duration).
-    const co = await supabaseAdmin.from('checkouts')
-      .update({ is_checked_out: false, check_in_time: new Date().toISOString(), duration_minutes: null }, { count: 'exact' })
-      .eq('is_checked_out', true).lt('check_out_time', fourHrsAgo)
-    cleaned.checkouts_closed = co.count ?? 0
+    // Open checkouts a student never checked back in from — close them at the
+    // school's cap (a forgotten pass records the cap, not a multi-hour duration).
+    let closed = 0
+    for (const s of SCHOOLS) {
+      const capN = await maxRecordedMinutes(s.id)
+      const co = await supabaseAdmin.from('checkouts')
+        .update({ is_checked_out: false, check_in_time: new Date().toISOString(), duration_minutes: capN, capped: true }, { count: 'exact' })
+        .eq('is_checked_out', true).eq('school', s.id).lt('check_out_time', fourHrsAgo)
+      closed += co.count ?? 0
+    }
+    cleaned.checkouts_closed = closed
   } catch {}
 
   const secret = process.env.CRON_SECRET

@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
   let q = supabaseAdmin
     .from('checkouts')
-    .select('id, location, check_out_time, check_in_time, duration_minutes, is_checked_out, school, student:students(id, name, gender), teacher:teachers!checkouts_teacher_id_fkey(id, name)')
+    .select('id, location, check_out_time, check_in_time, duration_minutes, is_checked_out, capped, school, student:students(id, name, gender), teacher:teachers!checkouts_teacher_id_fkey(id, name)')
     .gte('check_out_time', todayStart.toISOString())
     .order('check_out_time', { ascending: false })
     .limit(500)

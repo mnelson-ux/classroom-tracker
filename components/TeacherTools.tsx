@@ -113,6 +113,16 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
   }
 
   // Staff-clear one anonymous nurse visit (e.g. a student who left without checking in).
+  const adjustTime = async (id: string, currentMin: number) => {
+    const input = window.prompt('How many minutes was this student actually out?', String(currentMin))
+    if (input === null) return
+    const m = parseInt(input, 10)
+    if (!Number.isFinite(m) || m < 0 || m > 600) { window.alert('Enter a number of minutes (0–600).'); return }
+    const res = await fetch('/api/teacher/adjust-time', { method: 'POST', headers: authHeaders, body: JSON.stringify({ checkoutId: id, minutes: m }) })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); window.alert(d.error ?? 'Could not update'); return }
+    loadBoard(school)
+  }
+
   const clearNurse = async (sc: string) => {
     await fetch('/api/nurse', { method: 'POST', headers: authHeaders, body: JSON.stringify({ action: 'clear_all', school: sc }) })
     loadBoard(school)
@@ -390,8 +400,8 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                   <table className="w-full text-sm">
                     <thead className="border-b border-gray-200 bg-gray-50">
                       <tr>
-                        {['Student', 'Location', 'Teacher', 'Out', 'Back', 'Min'].map((h) => (
-                          <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>
+                        {['Student', 'Location', 'Teacher', 'Out', 'Back', 'Min', ''].map((h, i) => (
+                          <th key={i} className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -407,7 +417,14 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                             <td className="px-3 py-2.5 text-gray-500">{te?.name ?? '—'}</td>
                             <td className="px-3 py-2.5 text-gray-600">{fmt(r.check_out_time)}</td>
                             <td className="px-3 py-2.5 text-gray-600">{r.is_checked_out ? <span className="font-semibold text-amber-600">Still out</span> : fmt(r.check_in_time)}</td>
-                            <td className="px-3 py-2.5 font-semibold text-gray-800">{r.is_checked_out ? mins(r.check_out_time) : (r.duration_minutes ?? 0)}</td>
+                            <td className="px-3 py-2.5 font-semibold text-gray-800">
+                              {r.is_checked_out ? mins(r.check_out_time) : (r.duration_minutes ?? 0)}
+                              {r.capped ? <span className="ml-1 text-xs font-normal text-amber-600" title="Capped — likely a forgotten check-in">~</span> : null}
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <button onClick={() => adjustTime(r.id, r.is_checked_out ? mins(r.check_out_time) : (r.duration_minutes ?? 0))}
+                                className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Edit time</button>
+                            </td>
                           </tr>
                         )
                       })}
@@ -415,7 +432,7 @@ export default function TeacherTools({ token, onLogout, initialSchool }: { token
                   </table>
                 </div>
               )}
-              <p className="mt-2 text-xs text-gray-500">Everyone who checked out today, most recent first. Amber = still out. (Anonymous nurse passes are not listed.)</p>
+              <p className="mt-2 text-xs text-gray-500">Everyone who checked out today, most recent first. Amber = still out. <b>Edit time</b> corrects a forgotten check-in; <span className="text-amber-600">~</span> means the time was auto-capped. (Anonymous nurse passes are not listed.)</p>
             </>
           )}
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { checkThrottle, registerFailure, clearThrottle, lockMessage, PIN_THROTTLE } from '@/lib/throttle'
+import { maxRecordedMinutes, applyCap } from '@/lib/cap'
 
 export async function POST(request: Request) {
   const { checkoutId, studentId, pin } = await request.json()
@@ -49,7 +50,9 @@ export async function POST(request: Request) {
 
   const checkInTime = new Date()
   const checkOutTime = new Date(checkout.check_out_time)
-  const durationMinutes = Math.max(0, Math.floor((checkInTime.getTime() - checkOutTime.getTime()) / 1000 / 60))
+  const rawMinutes = Math.max(0, Math.floor((checkInTime.getTime() - checkOutTime.getTime()) / 1000 / 60))
+  const max = await maxRecordedMinutes(checkout.school)
+  const { minutes: durationMinutes, capped } = applyCap(rawMinutes, checkout.pass_type, max)
 
   const { error } = await supabaseAdmin
     .from('checkouts')
@@ -57,6 +60,7 @@ export async function POST(request: Request) {
       check_in_time: checkInTime.toISOString(),
       duration_minutes: durationMinutes,
       is_checked_out: false,
+      capped,
     })
     .eq('id', checkoutId)
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifySession, getTokenFromRequest } from '@/lib/auth'
+import { maxRecordedMinutes, applyCap } from '@/lib/cap'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,7 +60,9 @@ export async function PATCH(request: Request) {
   if (!checkout) return NextResponse.json({ error: 'Active pass not found' }, { status: 404 })
 
   const inTime = new Date()
-  const duration = Math.max(0, Math.floor((inTime.getTime() - new Date(checkout.check_out_time).getTime()) / 1000 / 60))
+  const rawMinutes = Math.max(0, Math.floor((inTime.getTime() - new Date(checkout.check_out_time).getTime()) / 1000 / 60))
+  const max = await maxRecordedMinutes(checkout.school)
+  const { minutes: duration, capped } = applyCap(rawMinutes, checkout.pass_type, max)
 
   const { error } = await supabaseAdmin
     .from('checkouts')
@@ -68,6 +71,7 @@ export async function PATCH(request: Request) {
       duration_minutes: duration,
       is_checked_out: false,
       arrival_confirmed: !!confirmArrival,
+      capped,
     })
     .eq('id', checkoutId)
 
