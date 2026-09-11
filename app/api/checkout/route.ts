@@ -94,22 +94,28 @@ export async function POST(request: Request) {
   // Shared helper: decide whether this student may go now, or must wait in line.
   // Returns { allow: true } or { allow: false, resp } (a 409 body).
   const queueMax = parseInt(settings.queue_max || '5')
-  async function queueDecision(loc: string, gender: string | null, capacity: number, occupancy: number) {
-    let q = supabaseAdmin.from('pass_queue').select('id, student_id').eq('school', student.school).eq('location', loc).order('created_at')
+  // A queued student is "held" (can't go yet, but keeps their place) if a keep-apart
+  // partner is out OR a same-gender classmate of theirs is already in the bathroom.
+  async function queueDecision(loc: string, gender: string | null, capacity: number, occupancy: number, sameGenderOut: any[], perRoomLimit: number) {
+    let q = supabaseAdmin.from('pass_queue').select('id, student_id, teacher_id').eq('school', student.school).eq('location', loc).order('created_at')
     if (gender) q = q.eq('gender', gender)
     const { data: queue } = await q
     const list = queue ?? []
     const idx = list.findIndex((e) => e.student_id === studentId)
     const spotOpen = occupancy < capacity
 
-    // First eligible person in line = first one NOT held back by keep-apart. A blocked
-    // student is skipped so they don't stall everyone behind them.
-    const ahead = (idx >= 0 ? list.slice(0, idx) : list).map((e) => e.student_id)
-    let someoneEligibleAhead = false
-    for (const id of ahead) { if (!(await partnerIsOut(id, student.school))) { someoneEligibleAhead = true; break } }
+    const perRoomFull = (tid: string | null) => sameGenderOut.filter((c: any) => c.teacher_id === tid).length >= perRoomLimit
+    const isHeld = async (sid: string, tid: string | null) => (await partnerIsOut(sid, student.school)) || perRoomFull(tid)
+    const requesterHeld = blocked || perRoomFull(teacherId)
 
-    // You may go now only if you're not blocked, there's room, and nobody eligible is ahead.
-    if (!blocked && spotOpen && !someoneEligibleAhead) {
+    // First eligible person in line = first one not held; held students are skipped
+    // so they don't stall everyone behind them.
+    const ahead = idx >= 0 ? list.slice(0, idx) : list
+    let someoneEligibleAhead = false
+    for (const e of ahead) { if (!(await isHeld(e.student_id, e.teacher_id))) { someoneEligibleAhead = true; break } }
+
+    // You may go now only if you're not held, there's room, and nobody eligible is ahead.
+    if (!requesterHeld && spotOpen && !someoneEligibleAhead) {
       return { allow: true as const }
     }
     if (idx >= 0) {
@@ -118,7 +124,7 @@ export async function POST(request: Request) {
     if (list.length >= queueMax) {
       return { allow: false as const, resp: { error: `The ${loc} line is full (${queueMax} waiting). Please try again in a few minutes.`, queueFull: true } }
     }
-    // Blocked (or full): offer the line so they can wait their turn.
+    // Held or full: offer the line so they can wait their turn.
     return { allow: false as const, resp: { error: `The ${loc} is full right now.`, canQueue: true, location: loc, position: list.length + 1 } }
   }
 
@@ -138,33 +144,27 @@ export async function POST(request: Request) {
 
     const gender = student.gender
     const sameGenderOut = activeBathroom?.filter((c: any) => c.students?.gender === gender) ?? []
-
-    // Per-room limit (applies to everyone incl. private bathrooms) — a hard stop, not queued.
     const perRoomLimit = parseInt(
       gender === 'male'
         ? settings.max_bathroom_per_room_boys ?? '1'
         : settings.max_bathroom_per_room_girls ?? '1'
     )
-    const fromSameRoom = sameGenderOut.filter((c: any) => c.teacher_id === teacherId)
-    if (fromSameRoom.length >= perRoomLimit) {
-      return NextResponse.json({
-        error: `A ${gender === 'male' ? 'boy' : 'girl'} from this classroom is already in the bathroom`,
-      }, { status: 409 })
-    }
 
-    // School-wide shared limit — queued when full (private bathrooms are exempt).
-    if (!isPrivate) {
+    if (isPrivate) {
+      // Private bathroom has no shared line — held students simply wait (hard stop).
+      const roomFull = sameGenderOut.filter((c: any) => c.teacher_id === teacherId).length >= perRoomLimit
+      if (blocked) return keepApartResp
+      if (roomFull) return NextResponse.json({ error: `A ${gender === 'male' ? 'boy' : 'girl'} from this classroom is already in the bathroom` }, { status: 409 })
+    } else {
+      // Shared bathroom: both the per-class and school-wide limits feed the waiting line.
       const totalLimit = parseInt(
         gender === 'male'
           ? settings.max_bathroom_total_boys ?? '2'
           : settings.max_bathroom_total_girls ?? '2'
       )
       const sharedOut = sameGenderOut.filter((c: any) => !c.teacher?.has_private_bathroom)
-      const decision = await queueDecision('Bathroom', gender, totalLimit, sharedOut.length)
+      const decision = await queueDecision('Bathroom', gender, totalLimit, sharedOut.length, sameGenderOut, perRoomLimit)
       if (!decision.allow) return NextResponse.json(decision.resp, { status: 409 })
-    } else if (blocked) {
-      // Private bathroom has no shared line — a kept-apart student simply waits.
-      return keepApartResp
     }
 
     // Daily time limit
