@@ -283,7 +283,7 @@ export default function CheckoutPanel({ students, teachers, activeCheckouts, onC
       )}
 
       {/* Private "in line" status — only this student's own turn, nothing else */}
-      {queued && (
+      {queued && !showPin && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center">
           <div className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl">
             {queueReady ? (
