@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import PinModal from './PinModal'
+import { useOvertimeAlert } from './useOvertimeAlert'
 import type { Checkout, Student, Teacher } from '@/lib/types'
 
 interface Props {
@@ -53,47 +54,7 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn, a
   const globe = useRotatingGlobe()
   const today = formatDate(new Date())
 
-  // Prime an audio context on any tap so the overtime tone can play later (iOS needs a gesture).
-  const audioRef = useRef<AudioContext | null>(null)
-  useEffect(() => {
-    const resume = () => {
-      try {
-        if (!audioRef.current) {
-          const Ctor = (window.AudioContext || (window as any).webkitAudioContext)
-          if (Ctor) audioRef.current = new Ctor()
-        }
-        audioRef.current?.resume()
-      } catch {}
-    }
-    resume()
-    window.addEventListener('pointerdown', resume)
-    window.addEventListener('touchstart', resume)
-    return () => { window.removeEventListener('pointerdown', resume); window.removeEventListener('touchstart', resume) }
-  }, [])
-
-  // While overtime, sound a triple-beep + vibrate every few seconds until they check in.
-  useEffect(() => {
-    if (!overtime) return
-    const burst = () => {
-      const ctx = audioRef.current
-      if (ctx && ctx.state === 'running') {
-        [0, 0.35, 0.7].forEach((t) => {
-          const o = ctx.createOscillator(); const g = ctx.createGain()
-          o.connect(g); g.connect(ctx.destination)
-          o.type = 'sine'; o.frequency.value = 880
-          const s = ctx.currentTime + t
-          g.gain.setValueAtTime(0.0001, s)
-          g.gain.exponentialRampToValueAtTime(0.45, s + 0.02)
-          g.gain.exponentialRampToValueAtTime(0.0001, s + 0.28)
-          o.start(s); o.stop(s + 0.3)
-        })
-      }
-      try { navigator.vibrate?.([250, 120, 250, 120, 250]) } catch {}
-    }
-    burst()
-    const id = setInterval(burst, 7000)
-    return () => clearInterval(id)
-  }, [overtime])
+  useOvertimeAlert(overtime)
 
   // Teacher-issued passes are always blue; otherwise color by destination.
   const bgByLocation: Record<string, string> = {
