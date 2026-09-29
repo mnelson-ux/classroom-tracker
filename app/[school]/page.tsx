@@ -114,7 +114,8 @@ export default function SchoolHomePage() {
     <>
       {greenScreen && (
         <GreenScreen checkout={greenScreen.checkout} student={greenScreen.student}
-          teacher={teacherForGreenScreen} onCheckedIn={() => setGreenScreen(null)} />
+          teacher={teacherForGreenScreen} onCheckedIn={() => setGreenScreen(null)}
+          alertMinutes={parseInt(settings.overtime_alert_minutes ?? '15')} />
       )}
 
       {/* Header — frosted purple→indigo gradient with gold accent */}

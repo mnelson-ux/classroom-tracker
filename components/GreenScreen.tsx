@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PinModal from './PinModal'
 import type { Checkout, Student, Teacher } from '@/lib/types'
 
@@ -9,6 +9,8 @@ interface Props {
   student: Student
   teacher: Teacher | undefined
   onCheckedIn: () => void
+  // Minutes out before the device starts nudging the student to check back in (0 = off).
+  alertMinutes?: number
 }
 
 function formatTime(iso: string) {
@@ -31,7 +33,7 @@ function useRotatingGlobe() {
   return globes[i]
 }
 
-function useElapsed(startIso: string) {
+function useElapsedSeconds(startIso: string) {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
     const tick = () => setElapsed(Math.floor((Date.now() - new Date(startIso).getTime()) / 1000))
@@ -39,16 +41,59 @@ function useElapsed(startIso: string) {
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [startIso])
-  const mins = Math.floor(elapsed / 60)
-  const secs = elapsed % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
+  return elapsed
 }
 
-export default function GreenScreen({ checkout, student, teacher, onCheckedIn }: Props) {
+export default function GreenScreen({ checkout, student, teacher, onCheckedIn, alertMinutes = 15 }: Props) {
   const [showPin, setShowPin] = useState(false)
-  const elapsed = useElapsed(checkout.check_out_time)
+  const elapsedSec = useElapsedSeconds(checkout.check_out_time)
+  const mm = Math.floor(elapsedSec / 60)
+  const elapsed = `${mm}:${(elapsedSec % 60).toString().padStart(2, '0')}`
+  const overtime = alertMinutes > 0 && elapsedSec >= alertMinutes * 60
   const globe = useRotatingGlobe()
   const today = formatDate(new Date())
+
+  // Prime an audio context on any tap so the overtime tone can play later (iOS needs a gesture).
+  const audioRef = useRef<AudioContext | null>(null)
+  useEffect(() => {
+    const resume = () => {
+      try {
+        if (!audioRef.current) {
+          const Ctor = (window.AudioContext || (window as any).webkitAudioContext)
+          if (Ctor) audioRef.current = new Ctor()
+        }
+        audioRef.current?.resume()
+      } catch {}
+    }
+    resume()
+    window.addEventListener('pointerdown', resume)
+    window.addEventListener('touchstart', resume)
+    return () => { window.removeEventListener('pointerdown', resume); window.removeEventListener('touchstart', resume) }
+  }, [])
+
+  // While overtime, sound a triple-beep + vibrate every few seconds until they check in.
+  useEffect(() => {
+    if (!overtime) return
+    const burst = () => {
+      const ctx = audioRef.current
+      if (ctx && ctx.state === 'running') {
+        [0, 0.35, 0.7].forEach((t) => {
+          const o = ctx.createOscillator(); const g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.type = 'sine'; o.frequency.value = 880
+          const s = ctx.currentTime + t
+          g.gain.setValueAtTime(0.0001, s)
+          g.gain.exponentialRampToValueAtTime(0.45, s + 0.02)
+          g.gain.exponentialRampToValueAtTime(0.0001, s + 0.28)
+          o.start(s); o.stop(s + 0.3)
+        })
+      }
+      try { navigator.vibrate?.([250, 120, 250, 120, 250]) } catch {}
+    }
+    burst()
+    const id = setInterval(burst, 7000)
+    return () => clearInterval(id)
+  }, [overtime])
 
   // Teacher-issued passes are always blue; otherwise color by destination.
   const bgByLocation: Record<string, string> = {
@@ -79,6 +124,9 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
 
   return (
     <div className={`fixed inset-0 z-40 flex flex-col ${bgColor}`}>
+      {/* Overtime attention ring */}
+      {overtime && <div className="pointer-events-none absolute inset-0 z-10 animate-pulse ring-[10px] ring-inset ring-red-600" />}
+
       {/* Top info strip */}
       <div className="flex items-center justify-between px-8 pt-8">
         <div className="rounded-full bg-white/20 px-4 py-2">
@@ -113,10 +161,15 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn }:
       </div>
 
       {/* Check back in button */}
-      <div className="px-8 pb-10">
+      <div className="z-20 px-8 pb-10">
+        {overtime && (
+          <div className="mb-4 animate-pulse rounded-2xl bg-red-600 px-4 py-3 text-center shadow-lg">
+            <p className="text-xl font-extrabold text-white">⏰ You&apos;re over {alertMinutes} minutes — check back in now!</p>
+          </div>
+        )}
         <button
           onClick={() => setShowPin(true)}
-          className="w-full rounded-2xl bg-white py-5 text-lg font-bold text-gray-900 shadow-lg transition hover:bg-gray-100 active:scale-[0.98]"
+          className={`w-full rounded-2xl py-5 text-lg font-bold shadow-lg transition active:scale-[0.98] ${overtime ? 'bg-red-600 text-white hover:bg-red-700 ring-4 ring-white/70' : 'bg-white text-gray-900 hover:bg-gray-100'}`}
         >
           Check Back In
         </button>
