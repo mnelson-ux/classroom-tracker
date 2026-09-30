@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useOvertimeAlert } from './useOvertimeAlert'
+import { useWakeLock } from './useWakeLock'
 
 // Full-screen anonymous nurse pass. The name is shown on this device only (for
 // the teacher to see) and is NOT stored anywhere — the server knows only a token.
@@ -33,6 +34,7 @@ export default function NursePass({ token, name, school, onClose }: {
   const elapsed = `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, '0')}`
   const overtime = alertMinutes > 0 && sec >= alertMinutes * 60
   useOvertimeAlert(overtime)
+  useWakeLock()
 
   const first = name.includes(',') ? name.split(',')[1]?.trim() ?? name : name
   const last = name.includes(',') ? name.split(',')[0]?.trim() : ''

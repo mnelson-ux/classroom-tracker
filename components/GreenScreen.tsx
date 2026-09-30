@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import PinModal from './PinModal'
 import { useOvertimeAlert } from './useOvertimeAlert'
+import { useWakeLock } from './useWakeLock'
 import type { Checkout, Student, Teacher } from '@/lib/types'
 
 interface Props {
@@ -55,6 +56,7 @@ export default function GreenScreen({ checkout, student, teacher, onCheckedIn, a
   const today = formatDate(new Date())
 
   useOvertimeAlert(overtime)
+  useWakeLock()
 
   // Teacher-issued passes are always blue; otherwise color by destination.
   const bgByLocation: Record<string, string> = {
