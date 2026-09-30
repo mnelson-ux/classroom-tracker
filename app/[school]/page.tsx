@@ -10,6 +10,7 @@ import GreenScreen from '@/components/GreenScreen'
 import LoginModal from '@/components/LoginModal'
 import TeacherTools from '@/components/TeacherTools'
 import MyPassModal from '@/components/MyPassModal'
+import { primeAudio } from '@/lib/passAudio'
 import type { Student, Teacher, Checkout, Settings, AuthState } from '@/lib/types'
 
 function useClock() {
@@ -60,6 +61,14 @@ export default function SchoolHomePage() {
     } catch {}
     finally { setLoading(false) }
   }, [school])
+
+  // Unlock audio on the first tap of the session so the overtime tone can play later.
+  useEffect(() => {
+    const h = () => primeAudio()
+    window.addEventListener('pointerdown', h)
+    window.addEventListener('keydown', h)
+    return () => { window.removeEventListener('pointerdown', h); window.removeEventListener('keydown', h) }
+  }, [])
 
   useEffect(() => {
     if (!isSchool(school)) return
